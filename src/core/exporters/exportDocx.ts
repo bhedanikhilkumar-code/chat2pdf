@@ -6,67 +6,165 @@ import {
   Packer,
   AlignmentType,
   BorderStyle,
+  Table,
+  TableRow,
+  TableCell,
+  WidthType,
+  Footer,
+  PageNumber,
 } from 'docx';
 import { saveAs } from 'file-saver';
 import type { Conversation, ExportOptions } from '../parser/types';
 import { filterMessages } from '../parser/filters';
+import { WATERMARK_TEXT } from '../branding';
 
 const ROLE_CONFIG: Record<
   string,
   { label: string; color: string; emoji: string }
 > = {
-  user: { label: 'User', color: '1967D2', emoji: '👤' },
-  assistant: { label: 'Assistant', color: '137333', emoji: '🤖' },
-  system: { label: 'System', color: '666666', emoji: '⚙' },
+  user: { label: 'User', color: '15803D', emoji: '👤' },
+  assistant: { label: 'Assistant', color: '0369A1', emoji: '🤖' },
+  system: { label: 'System', color: '475569', emoji: '⚙' },
 };
 
-function buildContentParagraphs(content: string): Paragraph[] {
-  const paragraphs: Paragraph[] = [];
+function parseMarkdownTable(tableLines: string[]): Table | null {
+  if (tableLines.length < 2) return null;
+
+  const rows: TableRow[] = [];
+
+  tableLines.forEach((line, rowIndex) => {
+    // Skip separator line (|---|---|)
+    if (/^[|\s:-]+$/.test(line)) return;
+
+    const cells = line
+      .split('|')
+      .slice(1, -1)
+      .map((c) => c.trim());
+
+    if (cells.length === 0) return;
+
+    const isHeader = rowIndex === 0;
+
+    const rowCells = cells.map(
+      (cellText) =>
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: cellText,
+                  bold: isHeader,
+                  font: 'Calibri',
+                  size: 20, // 10pt
+                }),
+              ],
+            }),
+          ],
+          shading: isHeader ? { fill: 'F1F5F9' } : undefined,
+          margins: { top: 120, bottom: 120, left: 160, right: 160 },
+        })
+    );
+
+    rows.push(new TableRow({ children: rowCells }));
+  });
+
+  if (rows.length === 0) return null;
+
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows,
+  });
+}
+
+function buildContentElements(content: string): (Paragraph | Table)[] {
+  const elements: (Paragraph | Table)[] = [];
   const lines = content.split('\n');
   let inCodeBlock = false;
+  let codeLines: string[] = [];
+  let tableLines: string[] = [];
+  let inTable = false;
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Handle code block
     if (line.startsWith('```')) {
-      inCodeBlock = !inCodeBlock;
+      if (!inCodeBlock) {
+        inCodeBlock = true;
+        codeLines = [];
+      } else {
+        inCodeBlock = false;
+        // Flush code block
+        codeLines.forEach((cLine) => {
+          elements.push(
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: cLine,
+                  font: 'Consolas',
+                  size: 19, // 9.5pt
+                  color: 'F8FAFC',
+                }),
+              ],
+              spacing: { before: 20, after: 20 },
+              shading: { fill: '1E293B' },
+              indent: { left: 240, right: 240 },
+            })
+          );
+        });
+      }
       continue;
     }
 
     if (inCodeBlock) {
-      paragraphs.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: line,
-              font: 'Consolas',
-              size: 18, // 9pt
-              color: '333333',
-            }),
-          ],
-          spacing: { before: 40, after: 40 },
-          shading: { type: 'clear' as unknown as undefined, color: 'auto', fill: 'F0F0F0' } as unknown as undefined,
-          indent: { left: 360 },
-        })
-      );
-    } else if (line.trim() === '') {
-      paragraphs.push(new Paragraph({ spacing: { before: 60, after: 60 } }));
+      codeLines.push(line);
+      continue;
+    }
+
+    // Handle markdown table
+    if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
+      inTable = true;
+      tableLines.push(line.trim());
+      continue;
+    } else if (inTable) {
+      inTable = false;
+      const tbl = parseMarkdownTable(tableLines);
+      if (tbl) elements.push(tbl);
+      tableLines = [];
+    }
+
+    // Handle normal text & lists
+    if (line.trim() === '') {
+      elements.push(new Paragraph({ spacing: { before: 60, after: 60 } }));
     } else {
-      paragraphs.push(
+      const isBullet = /^[ \t]*[-*+][ \t]+/.test(line);
+      const isNumber = /^[ \t]*\d+\.[ \t]+/.test(line);
+      const indent = isBullet || isNumber ? { left: 360 } : undefined;
+
+      elements.push(
         new Paragraph({
           children: [
             new TextRun({
               text: line,
               font: 'Calibri',
               size: 22, // 11pt
-              color: '333333',
+              color: '1E293B',
             }),
           ],
-          spacing: { before: 60, after: 60 },
+          spacing: { before: 50, after: 50 },
+          indent,
         })
       );
     }
   }
 
-  return paragraphs;
+  // Flush trailing table if file ends with table
+  if (inTable && tableLines.length > 0) {
+    const tbl = parseMarkdownTable(tableLines);
+    if (tbl) elements.push(tbl);
+  }
+
+  return elements;
 }
 
 export async function exportDocx(
@@ -75,7 +173,7 @@ export async function exportDocx(
 ): Promise<void> {
   const messages = filterMessages(conversation.messages, options.filterMode);
 
-  const sections: Paragraph[] = [];
+  const sections: (Paragraph | Table)[] = [];
 
   // Title
   if (options.includeTitle !== false && conversation.title) {
@@ -86,12 +184,12 @@ export async function exportDocx(
             text: conversation.title,
             bold: true,
             font: 'Calibri',
-            size: 36, // 18pt
-            color: '1A1A1A',
+            size: 38, // 19pt
+            color: '0F172A',
           }),
         ],
         heading: HeadingLevel.TITLE,
-        spacing: { after: 120 },
+        spacing: { after: 100 },
       })
     );
 
@@ -99,14 +197,14 @@ export async function exportDocx(
       new Paragraph({
         children: [
           new TextRun({
-            text: `Source: ${conversation.source} | Exported: ${conversation.exportedAt}`,
+            text: `Source: ${conversation.source}  |  Exported: ${new Date(conversation.exportedAt).toLocaleDateString()}`,
             font: 'Calibri',
-            size: 18, // 9pt
-            color: '888888',
+            size: 18,
+            color: '64748B',
             italics: true,
           }),
         ],
-        spacing: { after: 300 },
+        spacing: { after: 240 },
       })
     );
   }
@@ -119,7 +217,7 @@ export async function exportDocx(
             text: 'No messages to export.',
             font: 'Calibri',
             size: 22,
-            color: '999999',
+            color: '94A3B8',
             italics: true,
           }),
         ],
@@ -143,20 +241,20 @@ export async function exportDocx(
           }),
         ],
         heading: HeadingLevel.HEADING_2,
-        spacing: { before: 240, after: 80 },
+        spacing: { before: 200, after: 80 },
       })
     );
 
-    // Message content
-    sections.push(...buildContentParagraphs(msg.content));
+    // Message elements
+    sections.push(...buildContentElements(msg.content));
 
-    // Separator
+    // Divider
     sections.push(
       new Paragraph({
-        spacing: { before: 160, after: 160 },
+        spacing: { before: 140, after: 140 },
         border: {
           bottom: {
-            color: 'DDDDDD',
+            color: 'E2E8F0',
             space: 1,
             style: BorderStyle.SINGLE,
             size: 6,
@@ -166,18 +264,48 @@ export async function exportDocx(
     );
   }
 
+  // Document with footer containing page numbers and right-aligned watermark
   const doc = new Document({
     sections: [
       {
         properties: {
           page: {
             margin: {
-              top: 1440,  // 1 inch
+              top: 1440,
               right: 1440,
               bottom: 1440,
               left: 1440,
             },
           },
+        },
+        footers: {
+          default: new Footer({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                children: [
+                  new TextRun({
+                    text: 'Page ',
+                    font: 'Calibri',
+                    size: 18,
+                    color: '94A3B8',
+                  }),
+                  new TextRun({
+                    children: [PageNumber.CURRENT],
+                    font: 'Calibri',
+                    size: 18,
+                    color: '94A3B8',
+                  }),
+                  new TextRun({
+                    text: `   •   ${WATERMARK_TEXT}`,
+                    font: 'Calibri',
+                    size: 18,
+                    color: '94A3B8',
+                  }),
+                ],
+              }),
+            ],
+          }),
         },
         children: sections,
       },
