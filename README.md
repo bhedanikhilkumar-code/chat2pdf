@@ -90,6 +90,20 @@ npm run build
 
 ---
 
+---
+
+## 🛠️ Troubleshooting
+
+### Extension Exporter Page Shows a Blank Screen
+If chrome-extension://<id>/web/index.html displays a blank page:
+1. **Asset Base Paths**: The extension UI requires relative base paths (./assets/...) rather than absolute paths (/assets/...). This is handled automatically by 
+pm run build:extension via Vite's ase: './'.
+2. **PWA Service Worker in Extension**: The PWA service worker (ite-plugin-pwa) is disabled in extension builds to prevent service worker conflicts inside Chrome extension contexts.
+3. **No Underscore Chunks**: Chrome extensions reject assets starting with leading underscores (e.g. _commonjsHelpers). The build pipeline renames all such files with an ext- prefix.
+4. **Data Sync**: The exporter reads directly from chrome.storage.local with fallback to window.localStorage. Ensure the active chat tab has finished generating before pressing **Export this chat**.
+
+---
+
 ## 📄 License
 
 Distributed under the MIT License. See [LICENSE](LICENSE) for details.

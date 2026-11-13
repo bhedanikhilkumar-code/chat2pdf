@@ -9,36 +9,55 @@ import { parseExtracted } from '../core/parser/parseText';
 import type { Conversation, FilterMode, ExportOptions } from '../core/parser/types';
 
 export default function App() {
-  // StepIndicator uses 0-based indexing: 0 = Import, 1 = Preview, 2 = Export
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
+  const [loadError, setLoadError] = useState<string | null>(null);
   const { runExport, loading } = useExport();
 
-  // Check URL query parameters or localStorage for data passed from the Chrome extension
   useEffect(() => {
     try {
       const searchParams = new URLSearchParams(window.location.search);
       const isFromExt = searchParams.get('source') === 'extension';
 
       if (isFromExt) {
-        const stored = localStorage.getItem('chat2pdf_extracted_data');
-        if (stored) {
-          const parsedData = JSON.parse(stored);
-          if (Array.isArray(parsedData.messages) && parsedData.messages.length > 0) {
-            const conv = parseExtracted(
-              parsedData.messages,
-              parsedData.source || 'extension',
-              parsedData.title
-            );
-            setConversation(conv);
-            setCurrentStep(1);
-            localStorage.removeItem('chat2pdf_extracted_data');
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+          chrome.storage.local.get(['chat2pdf_extracted_data'], (result) => {
+            const data = result?.chat2pdf_extracted_data;
+            if (data && Array.isArray(data.messages) && data.messages.length > 0) {
+              const conv = parseExtracted(
+                data.messages,
+                data.source || 'extension',
+                data.title
+              );
+              setConversation(conv);
+              setCurrentStep(1);
+            }
+          });
+        }
+
+        if (typeof window !== 'undefined' && window.localStorage) {
+          const stored = localStorage.getItem('chat2pdf_extracted_data');
+          if (stored) {
+            try {
+              const parsedData = JSON.parse(stored);
+              if (Array.isArray(parsedData.messages) && parsedData.messages.length > 0) {
+                const conv = parseExtracted(
+                  parsedData.messages,
+                  parsedData.source || 'extension',
+                  parsedData.title
+                );
+                setConversation(conv);
+                setCurrentStep(1);
+                localStorage.removeItem('chat2pdf_extracted_data');
+              }
+            } catch (err) {}
           }
         }
       }
-    } catch (e) {
+    } catch (e: any) {
       console.warn('Failed to parse extension payload from storage/URL', e);
+      setLoadError(e?.message || 'Error loading conversation data');
     }
   }, []);
 
@@ -56,6 +75,12 @@ export default function App() {
     <Layout>
       <div className="space-y-8">
         <StepIndicator currentStep={currentStep} />
+
+        {loadError && (
+          <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-sm text-red-700 dark:text-red-300">
+            {loadError}
+          </div>
+        )}
 
         <div className="transition-all duration-200">
           {currentStep === 0 && (

@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build:web": "vite build",
-    "build:extension": "vite build --config vite.config.ext.ts && node scripts/finalize-extension.js",
-    "build": "npm run build:web && npm run build:extension"
+    "build:extension": "npm run build:web:ext && vite build --config vite.config.ext.ts && node scripts/finalize-extension.js",
+    "build": "npm run build:web && npm run build:extension",
+    "build:web:ext": "vite build --mode extension --outDir dist-web-ext"
   },
   "keywords": [],
   "dependencies": {
