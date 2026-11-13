@@ -13,7 +13,8 @@ export default function App() {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [loadError, setLoadError] = useState<string | null>(null);
-  const { runExport, loading } = useExport();
+  const { runExport, loading, progressText, error, errorDetails, clearError } = useExport();
+
 
   useEffect(() => {
     try {
@@ -74,8 +75,8 @@ export default function App() {
 
   return (
     <Layout>
-      <div className="space-y-8">
-        <StepIndicator currentStep={currentStep} />
+      <div className="space-y-6">
+        <StepIndicator currentStep={currentStep} onStepClick={(step) => setCurrentStep(step)} />
 
         {loadError && (
           <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-sm text-red-700 dark:text-red-300">
@@ -105,10 +106,15 @@ export default function App() {
               onBack={() => setCurrentStep(1)}
               onExport={handleExport}
               isExporting={loading}
+              progressText={progressText}
+              error={error}
+              errorDetails={errorDetails}
+              onClearError={clearError}
             />
           )}
         </div>
       </div>
     </Layout>
   );
+
 }
