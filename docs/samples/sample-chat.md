@@ -1,0 +1,36 @@
+# Untitled Chat
+> **Source:** chatgpt | **Exported:** 2026-11-13T17:03:24.532Z
+
+## 👤 User
+
+Namaste! Please give me a summary of 2+2 and a Python snippet with a table. 👤
+Also here is a long test url: https://github.com/bhedanikhilkumar-code/chat2pdf/blob/main/README.md
+
+---
+
+## 🤖 Assistant
+
+Sure! 2 + 2 equals **4**. ✅
+
+Here is your Python code:
+```python
+def add(a: int, b: int) -> int:
+    return a + b
+
+print("Result:", add(2, 2))
+```
+
+Here is the data table:
+| Parameter | Value | Status |
+| :--- | :--- | :--- |
+| Alpha 🚀 | 100 | Active |
+| Beta 🎯 | 200 | Pending |
+
+Key points:
+- Point 1: *High precision* calculation
+  - Nested detail regarding performance
+- Point 2: Modern responsive export
+
+---
+
+*Made with Chat2PDF*

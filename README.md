@@ -90,6 +90,13 @@ npm run build
 
 ---
 
+## 📂 Sample Exports
+
+View generated export samples showcasing formatting, emojis, tables, code blocks, and the watermark:
+- [Sample Markdown](docs/samples/sample-chat.md)
+- [Sample Plain Text](docs/samples/sample-chat.txt)
+- [Sample CSV](docs/samples/sample-chat.csv)
+
 ---
 
 ## 🛠️ Troubleshooting
