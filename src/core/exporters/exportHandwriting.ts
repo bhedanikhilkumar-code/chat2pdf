@@ -7,18 +7,19 @@ import type {
   PaperType,
 } from '../parser/types';
 import { filterMessages } from '../parser/filters';
+import { WATERMARK_TEXT } from '../branding';
 
 // A4 at 96 DPI
 const PAGE_W = 794;
 const PAGE_H = 1123;
-const MARGIN_LEFT = 80;
+const MARGIN_LEFT = 70;
 const MARGIN_RIGHT = 60;
-const MARGIN_TOP = 80;
-const MARGIN_BOTTOM = 80;
+const MARGIN_TOP = 70;
+const MARGIN_BOTTOM = 70;
 const CONTENT_WIDTH = PAGE_W - MARGIN_LEFT - MARGIN_RIGHT;
 
 // Ruled line spacing
-const RULED_SPACING = 32;
+const RULED_SPACING = 30;
 // Graph paper cell size
 const GRAPH_CELL = 20;
 
@@ -26,8 +27,8 @@ function drawPaperBackground(
   ctx: CanvasRenderingContext2D,
   paperType: PaperType
 ): void {
-  // White background
-  ctx.fillStyle = '#fffef8';
+  // White/cream background
+  ctx.fillStyle = '#fffef9';
   ctx.fillRect(0, 0, PAGE_W, PAGE_H);
 
   if (paperType === 'ruled') {
@@ -79,10 +80,8 @@ function drawPaperBackground(
       ctx.stroke();
     }
   }
-  // blank = just the white/cream bg, no lines
 }
 
-// Simple seeded PRNG for reproducible variations
 function seededRandom(seed: number): () => number {
   let s = seed;
   return () => {
@@ -91,36 +90,57 @@ function seededRandom(seed: number): () => number {
   };
 }
 
-function wrapTextManual(
+// Word-wrapping that measures actual text width on canvas and breaks long strings without spaces
+function wrapTextCanvas(
+  ctx: CanvasRenderingContext2D,
   text: string,
-  maxWidth: number,
-  charWidth: number
+  maxWidth: number
 ): string[] {
-  const charsPerLine = Math.floor(maxWidth / charWidth);
-  if (charsPerLine <= 0) return [text];
-
   const result: string[] = [];
-  const rawLines = text.split('\n');
+  const rawParagraphs = text.split('\n');
 
-  for (const rawLine of rawLines) {
-    if (rawLine.length === 0) {
+  for (const para of rawParagraphs) {
+    if (!para.trim()) {
       result.push('');
       continue;
     }
-    const words = rawLine.split(' ');
+
+    const words = para.split(/\s+/);
     let currentLine = '';
 
-    for (const word of words) {
-      if (currentLine.length === 0) {
-        currentLine = word;
-      } else if (currentLine.length + 1 + word.length <= charsPerLine) {
-        currentLine += ' ' + word;
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i];
+
+      // If a single word/URL is wider than maxWidth, break it character-by-character
+      if (ctx.measureText(word).width > maxWidth) {
+        if (currentLine) {
+          result.push(currentLine);
+          currentLine = '';
+        }
+
+        let partial = '';
+        for (const char of word) {
+          if (ctx.measureText(partial + char).width > maxWidth) {
+            result.push(partial);
+            partial = char;
+          } else {
+            partial += char;
+          }
+        }
+        currentLine = partial;
+        continue;
+      }
+
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      if (ctx.measureText(testLine).width <= maxWidth) {
+        currentLine = testLine;
       } else {
-        result.push(currentLine);
+        if (currentLine) result.push(currentLine);
         currentLine = word;
       }
     }
-    if (currentLine.length > 0) {
+
+    if (currentLine) {
       result.push(currentLine);
     }
   }
@@ -128,78 +148,40 @@ function wrapTextManual(
   return result;
 }
 
-function renderHandwrittenText(
-  ctx: CanvasRenderingContext2D,
-  lines: string[],
-  startY: number,
-  opts: HandwritingOptions
-): number {
-  const lineHeight = opts.fontSize * 1.6;
-  const charWidth = opts.fontSize * 0.55;
-  const rand = seededRandom(42);
-  let y = startY;
-
-  for (const line of lines) {
-    if (y + lineHeight > PAGE_H - MARGIN_BOTTOM) {
-      return -1; // Signal page break needed
-    }
-
-    let x = MARGIN_LEFT;
-    for (let c = 0; c < line.length; c++) {
-      const char = line[c];
-
-      // Small random variations for realism
-      const slant = (rand() - 0.5) * 1.2; // slight rotation
-      const yJitter = (rand() - 0.5) * 1.5;
-      const xJitter = (rand() - 0.5) * 0.8;
-      const sizeVariation = 1 + (rand() - 0.5) * 0.06;
-
-      // Ink variation: slight opacity changes
-      const alpha = 0.8 + rand() * 0.2;
-
-      ctx.save();
-      ctx.translate(x + xJitter, y + yJitter);
-      ctx.rotate((slant * Math.PI) / 180);
-      ctx.globalAlpha = alpha;
-      ctx.font = `${opts.fontSize * sizeVariation}px "${opts.font}"`;
-      ctx.fillStyle = opts.inkColor;
-      ctx.fillText(char, 0, 0);
-      ctx.restore();
-
-      x += charWidth + (rand() - 0.5) * 1.5;
-    }
-
-    y += lineHeight;
-  }
-
-  return y;
+function drawWatermark(ctx: CanvasRenderingContext2D): void {
+  ctx.save();
+  ctx.font = '11px sans-serif';
+  ctx.fillStyle = '#94a3b8';
+  ctx.textAlign = 'right';
+  ctx.fillText(WATERMARK_TEXT, PAGE_W - 30, PAGE_H - 25);
+  ctx.restore();
 }
 
 export async function exportHandwriting(
   conversation: Conversation,
   options: ExportOptions
 ): Promise<void> {
-  const messages = filterMessages(conversation.messages, options.filterMode);
-  const hw = options.handwriting || {
+  const hw: HandwritingOptions = {
     font: 'Caveat',
+    fontSize: 19,
+    lineSpacing: 1.4,
     inkColor: '#1a237e',
-    paperType: 'ruled' as PaperType,
-    fontSize: 18,
-    exportAs: 'pdf' as const,
+    paperType: 'ruled',
+    jitter: true,
+    exportAs: 'pdf',
+    ...options.handwriting,
   };
 
-  // Ensure font is loaded
-  try {
-    await document.fonts.load(`${hw.fontSize}px "${hw.font}"`);
-  } catch {
-    // Font may already be loaded or unavailable; proceed anyway
-  }
+  const messages = filterMessages(conversation.messages, options.filterMode);
 
-  const charWidth = hw.fontSize * 0.55;
-  const lineHeight = hw.fontSize * 1.6;
-  const maxContentY = PAGE_H - MARGIN_BOTTOM;
+  // Measure canvas
+  const measureCanvas = document.createElement('canvas');
+  const measureCtx = measureCanvas.getContext('2d')!;
+  measureCtx.font = `${hw.fontSize}px "${hw.font}", "Kalam", cursive, sans-serif`;
 
-  // Prepare all text lines
+  const lineHeight = hw.fontSize * hw.lineSpacing;
+  const maxContentY = PAGE_H - MARGIN_BOTTOM - 20;
+
   const allSegments: { text: string; isLabel: boolean }[] = [];
 
   if (options.includeTitle !== false && conversation.title) {
@@ -220,16 +202,17 @@ export async function exportHandwriting(
           : '— System —';
     allSegments.push({ text: label, isLabel: true });
 
-    const wrappedLines = wrapTextManual(msg.content, CONTENT_WIDTH, charWidth);
+    const wrappedLines = wrapTextCanvas(measureCtx, msg.content, CONTENT_WIDTH);
     for (const wl of wrappedLines) {
       allSegments.push({ text: wl, isLabel: false });
     }
-    allSegments.push({ text: '', isLabel: false }); // blank line between messages
+    allSegments.push({ text: '', isLabel: false });
   }
 
   // Render pages
   const pageCanvases: HTMLCanvasElement[] = [];
   let segIdx = 0;
+  const rng = seededRandom(42);
 
   while (segIdx < allSegments.length) {
     const canvas = document.createElement('canvas');
@@ -245,7 +228,7 @@ export async function exportHandwriting(
       const seg = allSegments[segIdx];
 
       if (y + lineHeight > maxContentY) {
-        break; // next page
+        break; // break to next page
       }
 
       if (seg.text === '') {
@@ -255,35 +238,47 @@ export async function exportHandwriting(
       }
 
       if (seg.isLabel) {
-        // Draw label slightly bolder
         ctx.save();
-        ctx.font = `bold ${hw.fontSize * 1.1}px "${hw.font}"`;
+        ctx.font = `bold ${hw.fontSize * 1.1}px "${hw.font}", "Kalam", cursive, sans-serif`;
         ctx.fillStyle = hw.inkColor;
         ctx.globalAlpha = 0.9;
         ctx.fillText(seg.text, MARGIN_LEFT, y);
         ctx.restore();
         y += lineHeight * 1.2;
       } else {
-        const result = renderHandwrittenText(ctx, [seg.text], y, hw);
-        if (result === -1) {
-          break; // page break
-        }
-        y = result;
+        // Natural jitter for handwritten feel
+        const xOffset = hw.jitter ? (rng() - 0.5) * 2 : 0;
+        const yOffset = hw.jitter ? (rng() - 0.5) * 1.5 : 0;
+        const rot = hw.jitter ? (rng() - 0.5) * 0.008 : 0;
+
+        ctx.save();
+        ctx.translate(MARGIN_LEFT + xOffset, y + yOffset);
+        if (rot !== 0) ctx.rotate(rot);
+
+        ctx.font = `${hw.fontSize}px "${hw.font}", "Kalam", cursive, sans-serif`;
+        ctx.fillStyle = hw.inkColor;
+        ctx.globalAlpha = 0.92;
+        ctx.fillText(seg.text, 0, 0);
+        ctx.restore();
+
+        y += lineHeight;
       }
 
       segIdx++;
     }
 
+    // Always draw bottom-right watermark on each handwriting page
+    drawWatermark(ctx);
     pageCanvases.push(canvas);
   }
 
-  // If no content was generated, create one blank page
   if (pageCanvases.length === 0) {
     const canvas = document.createElement('canvas');
     canvas.width = PAGE_W;
     canvas.height = PAGE_H;
     const ctx = canvas.getContext('2d')!;
     drawPaperBackground(ctx, hw.paperType);
+    drawWatermark(ctx);
     pageCanvases.push(canvas);
   }
 
@@ -305,8 +300,6 @@ export async function exportHandwriting(
     const blob = doc.output('blob');
     saveAs(blob, `${fileName}.pdf`);
   } else {
-    // JPG export: if single page, save as one image; if multi, save first page
-    // (could be extended to zip multiple pages)
     const canvas = pageCanvases[0];
     canvas.toBlob(
       (blob) => {

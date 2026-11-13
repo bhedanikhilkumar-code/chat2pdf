@@ -2,9 +2,10 @@ import Papa from 'papaparse';
 import { saveAs } from 'file-saver';
 import type { Conversation, ExportOptions } from '../parser/types';
 import { filterMessages } from '../parser/filters';
+import { WATERMARK_TEXT } from '../branding';
 
 interface CsvRow {
-  index: number;
+  index: number | string;
   role: string;
   message: string;
 }
@@ -24,6 +25,13 @@ export async function exportCsv(
   if (rows.length === 0) {
     rows.push({ index: 0, role: '', message: 'No messages to export.' });
   }
+
+  // Append watermark row at the end of CSV
+  rows.push({
+    index: '',
+    role: 'watermark',
+    message: WATERMARK_TEXT,
+  });
 
   const csv = Papa.unparse(rows, {
     columns: ['index', 'role', 'message'],

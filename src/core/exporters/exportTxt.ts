@@ -1,6 +1,7 @@
 import { saveAs } from 'file-saver';
 import type { Conversation, ExportOptions } from '../parser/types';
 import { filterMessages } from '../parser/filters';
+import { WATERMARK_TEXT } from '../branding';
 
 const ROLE_LABELS: Record<string, string> = {
   user: 'User',
@@ -15,7 +16,7 @@ export async function exportTxt(
   const messages = filterMessages(conversation.messages, options.filterMode);
 
   if (messages.length === 0) {
-    const blob = new Blob(['No messages to export.'], {
+    const blob = new Blob([`No messages to export.\n\n---\n${WATERMARK_TEXT}\n`], {
       type: 'text/plain;charset=utf-8',
     });
     saveAs(blob, `${options.fileName || conversation.title || 'chat'}.txt`);
@@ -38,6 +39,10 @@ export async function exportTxt(
     parts.push(msg.content);
     parts.push('');
   }
+
+  parts.push('='.repeat(60));
+  parts.push(WATERMARK_TEXT);
+  parts.push('');
 
   const text = parts.join('\n');
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
