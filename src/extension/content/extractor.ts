@@ -227,7 +227,7 @@ export async function collectFullConversation(
   onProgress?: (count: number, status: string) => void
 ): Promise<ExtractedConversation> {
   const hostname = window.location.hostname.replace(/^www\./, '');
-  const selectors = getSelectorsForHost(hostname) || getSelectorsForHost(window.location.hostname);
+  const selectors = getSelectorsForHost(hostname) || getSelectorsForHost(window.location.hostname) || undefined;
 
   let title = document.title || 'Exported Chat';
   if (selectors?.chatTitle) {
@@ -329,7 +329,7 @@ export async function collectFullConversation(
 // Backward compatibility helper
 export function extractConversation(): ExtractedConversation {
   const hostname = window.location.hostname.replace(/^www\./, '');
-  const selectors = getSelectorsForHost(hostname) || getSelectorsForHost(window.location.hostname);
+  const selectors = getSelectorsForHost(hostname) || getSelectorsForHost(window.location.hostname) || undefined;
   const turns = extractVisibleTurns(selectors);
 
   let title = document.title || 'Exported Chat';

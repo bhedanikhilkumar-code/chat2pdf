@@ -169,7 +169,7 @@ export async function exportHandwriting(
   const measureCtx = measureCanvas.getContext('2d')!;
   measureCtx.font = `${hw.fontSize}px "${hw.font}", "Kalam", cursive, sans-serif`;
 
-  const lineHeight = hw.fontSize * hw.lineSpacing;
+  const lineHeight = hw.fontSize * (hw.lineSpacing || 1.35);
   const maxContentY = PAGE_H - MARGIN_BOTTOM - 20;
 
   const allSegments: { text: string; isLabel: boolean }[] = [];
