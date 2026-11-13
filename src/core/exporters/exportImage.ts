@@ -2,194 +2,101 @@ import { toPng, toJpeg } from 'html-to-image';
 import { saveAs } from 'file-saver';
 import type { Conversation, ExportOptions, ImageMode } from '../parser/types';
 import { filterMessages } from '../parser/filters';
-
-const STYLES = {
-  container: {
-    fontFamily: "'Segoe UI', 'Helvetica Neue', Arial, sans-serif",
-    backgroundColor: '#ffffff',
-    padding: '32px',
-    maxWidth: '800px',
-    width: '800px',
-  },
-  title: {
-    fontSize: '24px',
-    fontWeight: 'bold',
-    marginBottom: '8px',
-    color: '#1a1a1a',
-  },
-  subtitle: {
-    fontSize: '12px',
-    color: '#888',
-    marginBottom: '24px',
-  },
-  userCard: {
-    backgroundColor: '#e8f0fe',
-    borderRadius: '12px',
-    padding: '16px',
-    marginBottom: '12px',
-    borderLeft: '4px solid #4285f4',
-  },
-  assistantCard: {
-    backgroundColor: '#f0f4f0',
-    borderRadius: '12px',
-    padding: '16px',
-    marginBottom: '12px',
-    borderLeft: '4px solid #34a853',
-  },
-  systemCard: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: '12px',
-    padding: '16px',
-    marginBottom: '12px',
-    borderLeft: '4px solid #999',
-  },
-  roleLabel: {
-    fontSize: '11px',
-    fontWeight: '700' as const,
-    textTransform: 'uppercase' as const,
-    marginBottom: '6px',
-    letterSpacing: '0.5px',
-  },
-  content: {
-    fontSize: '14px',
-    lineHeight: '1.6',
-    color: '#333',
-    whiteSpace: 'pre-wrap' as const,
-    wordBreak: 'break-word' as const,
-  },
-  shortContent: {
-    fontSize: '13px',
-    lineHeight: '1.5',
-    color: '#333',
-    whiteSpace: 'pre-wrap' as const,
-    wordBreak: 'break-word' as const,
-  },
-};
-
-function applyStyles(
-  el: HTMLElement,
-  styles: Record<string, string | number>
-): void {
-  Object.entries(styles).forEach(([key, value]) => {
-    (el.style as unknown as Record<string, string>)[key] = String(value);
-  });
-}
-
-function createMessageElement(
-  msg: { role: string; content: string },
-  mode: ImageMode
-): HTMLElement {
-  const card = document.createElement('div');
-  const cardStyle =
-    msg.role === 'user'
-      ? STYLES.userCard
-      : msg.role === 'assistant'
-        ? STYLES.assistantCard
-        : STYLES.systemCard;
-  applyStyles(card, cardStyle);
-
-  const label = document.createElement('div');
-  applyStyles(label, STYLES.roleLabel);
-  label.style.color =
-    msg.role === 'user'
-      ? '#4285f4'
-      : msg.role === 'assistant'
-        ? '#34a853'
-        : '#999';
-  label.textContent =
-    msg.role === 'user'
-      ? '👤 USER'
-      : msg.role === 'assistant'
-        ? '🤖 ASSISTANT'
-        : '⚙ SYSTEM';
-  card.appendChild(label);
-
-  const content = document.createElement('div');
-  const contentText =
-    mode === 'short' && msg.content.length > 400
-      ? msg.content.substring(0, 400).trim() + '…'
-      : msg.content;
-  applyStyles(content, mode === 'short' ? STYLES.shortContent : STYLES.content);
-  content.textContent = contentText;
-  card.appendChild(content);
-
-  return card;
-}
+import { renderMarkdownToHtml, PAGE_STYLES } from '../renderer/pageRenderer';
+import { WATERMARK_TEXT } from '../branding';
 
 export async function exportImage(
   conversation: Conversation,
   options: ExportOptions,
-  format: 'png' | 'jpg' = 'png'
+  format: 'png' | 'jpg' = 'png',
+  mode: ImageMode = 'long'
 ): Promise<void> {
   const messages = filterMessages(conversation.messages, options.filterMode);
-  const mode: ImageMode = options.imageMode || 'long';
 
-  // Create temporary hidden container
+  if (messages.length === 0) {
+    throw new Error('No messages to export.');
+  }
+
   const container = document.createElement('div');
-  applyStyles(container, STYLES.container);
   container.style.position = 'fixed';
-  container.style.left = '-9999px';
-  container.style.top = '0';
-  container.style.zIndex = '-1';
+  container.style.top = '-99999px';
+  container.style.left = '-99999px';
+  container.style.width = '794px';
+  container.style.background = '#ffffff';
+  container.style.boxSizing = 'border-box';
+  container.style.padding = '36px';
+
+  const styleEl = document.createElement('style');
+  styleEl.textContent = PAGE_STYLES;
+  container.appendChild(styleEl);
+
+  const wrapper = document.createElement('div');
+  wrapper.style.display = 'flex';
+  wrapper.style.flexDirection = 'column';
+  wrapper.style.gap = mode === 'card' ? '20px' : '14px';
+
+  // Header
+  if (options.includeTitle !== false && conversation.title) {
+    const header = document.createElement('div');
+    header.className = 'chat2pdf-header';
+    header.innerHTML = `
+      <h1 class="chat2pdf-title">${conversation.title}</h1>
+      <div class="chat2pdf-meta">
+        <span>Source: ${conversation.source}</span>
+        <span>Date: ${new Date(conversation.exportedAt).toLocaleDateString()}</span>
+      </div>
+    `;
+    wrapper.appendChild(header);
+  }
+
+  // Messages
+  messages.forEach((msg) => {
+    const roleIcon = msg.role === 'user' ? '👤 User' : '🤖 Assistant';
+    const roleClass = msg.role === 'user' ? 'chat2pdf-msg-user' : 'chat2pdf-msg-assistant';
+    const bodyHtml = renderMarkdownToHtml(msg.content);
+
+    const msgEl = document.createElement('div');
+    msgEl.className = `chat2pdf-msg ${roleClass}`;
+    if (mode === 'card') {
+      msgEl.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)';
+      msgEl.style.border = '1px solid #e2e8f0';
+    }
+    msgEl.innerHTML = `
+      <div class="chat2pdf-msg-role">${roleIcon}</div>
+      <div class="chat2pdf-body">${bodyHtml}</div>
+    `;
+    wrapper.appendChild(msgEl);
+  });
+
+  // Footer with absolute bottom-right watermark
+  const footer = document.createElement('div');
+  footer.className = 'chat2pdf-footer';
+  footer.style.marginTop = '16px';
+  footer.innerHTML = `
+    <span>${messages.length} messages</span>
+    <span class="chat2pdf-watermark">${WATERMARK_TEXT}</span>
+  `;
+  wrapper.appendChild(footer);
+
+  container.appendChild(wrapper);
   document.body.appendChild(container);
 
   try {
-    // Title
-    if (options.includeTitle !== false && conversation.title) {
-      const titleEl = document.createElement('div');
-      applyStyles(titleEl, STYLES.title);
-      titleEl.textContent = conversation.title;
-      container.appendChild(titleEl);
+    // Give fonts and twemoji images time to settle
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
-      const subtitleEl = document.createElement('div');
-      applyStyles(subtitleEl, STYLES.subtitle);
-      subtitleEl.textContent = `${conversation.source} • ${conversation.exportedAt}`;
-      container.appendChild(subtitleEl);
-    }
-
-    if (messages.length === 0) {
-      const emptyEl = document.createElement('div');
-      emptyEl.textContent = 'No messages to export.';
-      emptyEl.style.color = '#999';
-      emptyEl.style.padding = '20px';
-      emptyEl.style.textAlign = 'center';
-      container.appendChild(emptyEl);
-    } else if (mode === 'short') {
-      // Short mode: only assistant answers (key answers), compact cards
-      const keyMessages = messages.filter((m) => m.role === 'assistant');
-      const toRender = keyMessages.length > 0 ? keyMessages : messages;
-      for (const msg of toRender) {
-        container.appendChild(createMessageElement(msg, 'short'));
-      }
-    } else {
-      // Long mode: all messages
-      for (const msg of messages) {
-        container.appendChild(createMessageElement(msg, 'long'));
-      }
-    }
-
-    // Wait a tick for DOM rendering
-    await new Promise((r) => setTimeout(r, 100));
-
-    const captureOptions = {
+    const exportFn = format === 'jpg' ? toJpeg : toPng;
+    const dataUrl = await exportFn(container, {
       quality: 0.95,
       pixelRatio: 2,
-      backgroundColor: '#ffffff',
-    };
+      cacheBust: true,
+    });
 
-    let dataUrl: string;
-    if (format === 'jpg') {
-      dataUrl = await toJpeg(container, captureOptions);
-    } else {
-      dataUrl = await toPng(container, captureOptions);
-    }
-
-    // Convert data URL to blob
-    const response = await fetch(dataUrl);
-    const blob = await response.blob();
-
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
     const ext = format === 'jpg' ? 'jpg' : 'png';
-    saveAs(blob, `${options.fileName || conversation.title || 'chat'}.${ext}`);
+    const filename = `${options.fileName || conversation.title || 'chat'}_${mode}.${ext}`;
+    saveAs(blob, filename);
   } finally {
     document.body.removeChild(container);
   }
