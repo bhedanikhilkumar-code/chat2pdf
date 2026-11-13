@@ -1,5 +1,5 @@
 import { cleanText } from './cleaners';
-import type { ChatMessage, Conversation } from './types';
+import type { ChatMessage, Conversation, Attachment } from './types';
 
 // Role detection patterns
 const ROLE_PATTERNS = {
@@ -49,6 +49,50 @@ function detectSource(text: string): string {
   return 'unknown';
 }
 
+/**
+ * Extracts inline attachment tags, e.g.:
+ * [Attachment: report.pdf]
+ * [Attachment: chart.png, image, 1.2MB]
+ * [File: data.csv]
+ * Returns the cleaned text without the tags and the array of Attachment items.
+ */
+export function extractInlineAttachments(text: string): { content: string; attachments: Attachment[] } {
+  const attachments: Attachment[] = [];
+  const attachmentRegex = /\[(?:Attachment|File|Uploaded File)\s*:\s*([^\]]+)\]/gi;
+
+  const content = text.replace(attachmentRegex, (_, match: string) => {
+    const parts = match.split(',').map((p) => p.trim());
+    const name = parts[0] || 'file';
+    let kind = 'document';
+    let size: string | undefined = undefined;
+
+    const ext = name.split('.').pop()?.toLowerCase();
+    if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext || '')) {
+      kind = 'image';
+    } else if (['pdf'].includes(ext || '')) {
+      kind = 'pdf';
+    } else if (['js', 'ts', 'py', 'json', 'html', 'css', 'go', 'rs', 'cpp', 'java'].includes(ext || '')) {
+      kind = 'code';
+    }
+
+    if (parts.length > 1) {
+      for (let i = 1; i < parts.length; i++) {
+        const p = parts[i];
+        if (/(?:kb|mb|gb|bytes)/i.test(p)) {
+          size = p;
+        } else if (['image', 'document', 'pdf', 'code', 'archive'].includes(p.toLowerCase())) {
+          kind = p.toLowerCase();
+        }
+      }
+    }
+
+    attachments.push({ name, kind, size });
+    return '';
+  }).trim();
+
+  return { content, attachments };
+}
+
 export function parseText(rawText: string): Conversation {
   const cleaned = cleanText(rawText);
   const lines = cleaned.split('\n');
@@ -85,12 +129,14 @@ export function parseText(rawText: string): Conversation {
       const role = !inCodeBlock ? detectRole(line) : null;
       if (role !== null) {
         if (currentContent.length > 0) {
-          const content = currentContent.join('\n').trim();
-          if (content) {
+          const rawBlock = currentContent.join('\n').trim();
+          if (rawBlock) {
+            const { content, attachments } = extractInlineAttachments(rawBlock);
             messages.push({
               role: currentRole,
               content,
               index: messageIndex++,
+              attachments: attachments.length > 0 ? attachments : undefined,
             });
           }
         }
@@ -145,10 +191,12 @@ export function parseText(rawText: string): Conversation {
     }
 
     for (const block of turns) {
+      const { content, attachments } = extractInlineAttachments(block);
       messages.push({
         role: currentRole,
-        content: block,
+        content,
         index: messageIndex++,
+        attachments: attachments.length > 0 ? attachments : undefined,
       });
       currentRole = currentRole === 'user' ? 'assistant' : 'user';
     }
@@ -163,12 +211,14 @@ export function parseText(rawText: string): Conversation {
 
   // Save last message
   if (currentContent.length > 0) {
-    const content = currentContent.join('\n').trim();
-    if (content) {
+    const rawBlock = currentContent.join('\n').trim();
+    if (rawBlock) {
+      const { content, attachments } = extractInlineAttachments(rawBlock);
       messages.push({
         role: currentRole,
         content,
         index: messageIndex++,
+        attachments: attachments.length > 0 ? attachments : undefined,
       });
     }
   }
@@ -190,18 +240,23 @@ function extractTitle(text: string): string {
 }
 
 export function parseExtracted(
-  data: { role: 'user' | 'assistant'; content: string }[],
+  data: { role: 'user' | 'assistant'; content: string; attachments?: Attachment[] }[],
   source: string,
   title?: string
 ): Conversation {
   return {
     title: title || 'Exported Chat',
     source,
-    messages: data.map((m, i) => ({
-      ...m,
-      content: cleanText(m.content),
-      index: i,
-    })),
+    messages: data.map((m, i) => {
+      const { content, attachments: parsedAtts } = extractInlineAttachments(m.content);
+      const combinedAttachments = [...(m.attachments || []), ...parsedAtts];
+      return {
+        role: m.role,
+        content: cleanText(content),
+        index: i,
+        attachments: combinedAttachments.length > 0 ? combinedAttachments : undefined,
+      };
+    }),
     exportedAt: new Date().toISOString(),
   };
 }

@@ -8,6 +8,7 @@ interface CsvRow {
   index: number | string;
   role: string;
   message: string;
+  attachments?: string;
 }
 
 export async function exportCsv(
@@ -20,20 +21,24 @@ export async function exportCsv(
     index: i + 1,
     role: msg.role,
     message: msg.content,
+    attachments: msg.attachments && msg.attachments.length > 0
+      ? msg.attachments.map((a) => a.name + (a.size ? ` (${a.size})` : '')).join('; ')
+      : '',
   }));
 
   if (rows.length === 0) {
-    rows.push({ index: 0, role: '', message: 'No messages to export.' });
+    rows.push({ index: 0, role: '', message: 'No messages to export.', attachments: '' });
   }
 
   rows.push({
     index: '',
     role: 'watermark',
     message: WATERMARK_TEXT,
+    attachments: '',
   });
 
   const csv = Papa.unparse(rows, {
-    columns: ['index', 'role', 'message'],
+    columns: ['index', 'role', 'message', 'attachments'],
     header: true,
   });
 

@@ -243,11 +243,28 @@ export function buildPaginatedDom(
     const roleClass = msg.role === 'user' ? 'chat2pdf-msg-user' : 'chat2pdf-msg-assistant';
     const bodyHtml = renderMarkdownToHtml(msg.content);
 
+    let attachmentsHtml = '';
+    if (msg.attachments && msg.attachments.length > 0) {
+      attachmentsHtml = `
+        <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px;">
+          ${msg.attachments
+            .map(
+              (att) => `
+            <span style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 11px; font-weight: 500; color: #334155;">
+              📎 ${att.name}${att.size ? ` <span style="color: #64748b; font-size: 10px;">(${att.size})</span>` : ''}
+            </span>
+          `
+            )
+            .join('')}
+        </div>
+      `;
+    }
+
     const msgEl = document.createElement('div');
     msgEl.className = `chat2pdf-msg ${roleClass}`;
     msgEl.innerHTML = `
       <div class="chat2pdf-msg-role">${roleIcon}</div>
-      <div class="chat2pdf-body">${bodyHtml}</div>
+      <div class="chat2pdf-body">${bodyHtml}${attachmentsHtml}</div>
     `;
 
     measureContainer.appendChild(msgEl);

@@ -37,6 +37,9 @@ export async function exportTxt(
     const label = ROLE_LABELS[msg.role] || msg.role;
     parts.push(`--- ${label} ---`);
     parts.push(msg.content);
+    if (msg.attachments && msg.attachments.length > 0) {
+      parts.push(`Attachments: ${msg.attachments.map((a) => a.name + (a.size ? ` (${a.size})` : '')).join(', ')}`);
+    }
     parts.push('');
   }
 

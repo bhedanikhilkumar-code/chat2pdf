@@ -70,4 +70,22 @@ describe('Core Parser and Structure Preserver', () => {
     expect(assistantMsg.content).toContain('  - Nested bullet point');
     expect(assistantMsg.content).toContain('1. Pehla step');
   });
+
+  it('extracts inline attachments from messages correctly', () => {
+    const raw = `User: Can you check this document?
+[Attachment: quarterly_report.pdf, pdf, 1.2MB]
+[Attachment: sales_data.csv]
+
+Assistant: I reviewed both files. Here is the summary.`;
+
+    const conv = parseText(raw);
+    expect(conv.messages.length).toBe(2);
+    const userMsg = conv.messages[0];
+    expect(userMsg.attachments).toBeDefined();
+    expect(userMsg.attachments?.length).toBe(2);
+    expect(userMsg.attachments?.[0].name).toBe('quarterly_report.pdf');
+    expect(userMsg.attachments?.[0].kind).toBe('pdf');
+    expect(userMsg.attachments?.[0].size).toBe('1.2MB');
+    expect(userMsg.attachments?.[1].name).toBe('sales_data.csv');
+  });
 });

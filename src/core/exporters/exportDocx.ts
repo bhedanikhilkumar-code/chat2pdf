@@ -238,6 +238,23 @@ export async function exportDocx(
 
     sections.push(...buildContentElements(msg.content));
 
+    if (msg.attachments && msg.attachments.length > 0) {
+      sections.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: '📎 Attachments: ' + msg.attachments.map((a) => a.name + (a.size ? ` (${a.size})` : '')).join(', '),
+              font: 'Calibri',
+              size: 20,
+              color: '475569',
+              bold: true,
+            }),
+          ],
+          spacing: { before: 80, after: 80 },
+        })
+      );
+    }
+
     sections.push(
       new Paragraph({
         spacing: { before: 140, after: 140 },

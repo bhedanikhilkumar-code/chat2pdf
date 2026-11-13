@@ -168,7 +168,11 @@ export async function exportPptx(
           line: { color: 'bbf7d0', width: 1 },
           rectRadius: 0.08,
         });
-        slide.addText(userMsg.content.substring(0, 450), {
+        const userText = userMsg.attachments && userMsg.attachments.length > 0
+          ? `${userMsg.content}\n[📎 ${userMsg.attachments.map((a) => a.name).join(', ')}]`
+          : userMsg.content;
+
+        slide.addText(userText.substring(0, 450), {
           x: 1.0,
           y: 0.85,
           w: 11.3,

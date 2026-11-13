@@ -59,6 +59,20 @@ export const ChatPreview: React.FC<ChatPreviewProps> = ({ messages, title, sourc
                     }`}
                     dangerouslySetInnerHTML={renderMarkdown(m.content)}
                   />
+                  {m.attachments && m.attachments.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-black/10 dark:border-white/10 flex flex-wrap gap-1.5">
+                      {m.attachments.map((att, aIdx) => (
+                        <span
+                          key={aIdx}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/10 dark:bg-white/10 text-[11px] font-medium"
+                        >
+                          <span>📎</span>
+                          <span>{att.name}</span>
+                          {att.size && <span className="opacity-75 text-[10px]">({att.size})</span>}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             );
