@@ -1,24 +1,24 @@
 import jsPDF from 'jspdf';
 import { toPng } from 'html-to-image';
-import { saveAs } from 'file-saver';
 import type { Conversation, ExportOptions } from '../parser/types';
 import { buildPaginatedDom, PAGE_STYLES } from '../renderer/pageRenderer';
+import { downloadBlob } from './downloadHelper';
 
 export async function exportPdf(
   conversation: Conversation,
-  options: ExportOptions
+  options: ExportOptions,
+  onProgress?: (current: number, total: number) => void
 ): Promise<void> {
-  // Build clean fixed-size A4 DOM pages with fonts, watermarks, and markdown formatting
   const pages = buildPaginatedDom(conversation, options);
 
   if (pages.length === 0) {
     const doc = new jsPDF();
     doc.text('No messages to export.', 20, 20);
-    saveAs(doc.output('blob'), `${options.fileName || conversation.title || 'chat'}.pdf`);
+    await downloadBlob(doc.output('blob'), `${options.fileName || conversation.title || 'chat'}.pdf`);
     return;
   }
 
-  // Temporary staging container
+  // Staging container visible offscreen
   const container = document.createElement('div');
   container.style.position = 'fixed';
   container.style.top = '-99999px';
@@ -34,10 +34,9 @@ export async function exportPdf(
   document.body.appendChild(container);
 
   try {
-    // Wait for fonts & twemoji images to load
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Settle rendering
+    await new Promise((resolve) => setTimeout(resolve, 200));
 
-    // A4 in mm: 210 x 297
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -46,11 +45,17 @@ export async function exportPdf(
     });
 
     for (let i = 0; i < pages.length; i++) {
+      if (onProgress) {
+        onProgress(i + 1, pages.length);
+      }
+
       const pageEl = pages[i];
+      // Render one page at a time with skipFonts to avoid CORS on external fonts
       const imgDataUrl = await toPng(pageEl, {
-        quality: 0.98,
-        pixelRatio: 2, // 2x DPI for crisp high-resolution text and emojis
-        cacheBust: true,
+        quality: 0.95,
+        pixelRatio: 1.5,
+        skipFonts: true,
+        cacheBust: false,
       });
 
       if (i > 0) {
@@ -61,7 +66,7 @@ export async function exportPdf(
     }
 
     const blob = pdf.output('blob');
-    saveAs(blob, `${options.fileName || conversation.title || 'chat'}.pdf`);
+    await downloadBlob(blob, `${options.fileName || conversation.title || 'chat'}.pdf`);
   } finally {
     document.body.removeChild(container);
   }

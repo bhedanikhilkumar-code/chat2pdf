@@ -1,8 +1,8 @@
 import Papa from 'papaparse';
-import { saveAs } from 'file-saver';
 import type { Conversation, ExportOptions } from '../parser/types';
 import { filterMessages } from '../parser/filters';
 import { WATERMARK_TEXT } from '../branding';
+import { downloadBlob } from './downloadHelper';
 
 interface CsvRow {
   index: number | string;
@@ -26,7 +26,6 @@ export async function exportCsv(
     rows.push({ index: 0, role: '', message: 'No messages to export.' });
   }
 
-  // Append watermark row at the end of CSV
   rows.push({
     index: '',
     role: 'watermark',
@@ -39,5 +38,5 @@ export async function exportCsv(
   });
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-  saveAs(blob, `${options.fileName || conversation.title || 'chat'}.csv`);
+  await downloadBlob(blob, `${options.fileName || conversation.title || 'chat'}.csv`);
 }

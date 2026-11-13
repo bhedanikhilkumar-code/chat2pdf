@@ -1,8 +1,8 @@
 import PptxGenJS from 'pptxgenjs';
-import { saveAs } from 'file-saver';
 import type { Conversation, ExportOptions } from '../parser/types';
 import { filterMessages } from '../parser/filters';
 import { WATERMARK_TEXT } from '../branding';
+import { downloadBlob } from './downloadHelper';
 
 const COLORS = {
   titleBg: '0f172a',
@@ -14,10 +14,6 @@ const COLORS = {
   systemBg: 'f1f5f9',
   systemLabel: '475569',
   bodyText: '1e293b',
-  codeBg: '1e293b',
-  codeText: 'f8fafc',
-  tableBorder: 'cbd5e1',
-  tableHeader: 'f1f5f9',
   watermark: '94a3b8',
 };
 
@@ -45,7 +41,7 @@ export async function exportPptx(
 ): Promise<void> {
   const messages = filterMessages(conversation.messages, options.filterMode);
   const pptx = new PptxGenJS();
-  pptx.layout = 'LAYOUT_WIDE'; // 13.33 x 7.5 inches
+  pptx.layout = 'LAYOUT_WIDE';
 
   // Define master slide layout with bottom-right watermark
   pptx.defineSlideMaster({
@@ -126,7 +122,6 @@ export async function exportPptx(
     });
   }
 
-  // Iterate messages and format into clean slides
   let slideNum = 1;
   let i = 0;
 
@@ -138,13 +133,11 @@ export async function exportPptx(
         : null;
 
     if (userMsg.role === 'user' && assistantMsg) {
-      // Split long assistant response into multiple continuation slides if needed
       const answerChunks = splitTextIntoChunks(assistantMsg.content, 900);
 
       answerChunks.forEach((chunk, chunkIdx) => {
         const slide = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
 
-        // Slide page number (bottom left)
         slide.addText(`Slide ${slideNum}`, {
           x: 0.8,
           y: 7.05,
@@ -155,7 +148,6 @@ export async function exportPptx(
           fontFace: 'Arial',
         });
 
-        // Question block (on every slide or continuation)
         const qTitle = chunkIdx === 0 ? 'Question' : 'Question (cont.)';
         slide.addText(qTitle, {
           x: 0.8,
@@ -188,7 +180,6 @@ export async function exportPptx(
           wrap: true,
         });
 
-        // Answer block
         const aTitle = chunkIdx === 0 ? 'Answer' : `Answer (cont. ${chunkIdx + 1}/${answerChunks.length})`;
         slide.addText(aTitle, {
           x: 0.8,
@@ -210,7 +201,6 @@ export async function exportPptx(
           rectRadius: 0.08,
         });
 
-        // Monospace styling if chunk contains code blocks
         const hasCode = chunk.includes('```');
         slide.addText(chunk, {
           x: 1.0,
@@ -229,7 +219,6 @@ export async function exportPptx(
 
       i += 2;
     } else {
-      // Single stand-alone message
       const slide = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
       const isUser = userMsg.role === 'user';
       const labelColor = isUser ? COLORS.userLabel : COLORS.assistantLabel;
@@ -285,5 +274,5 @@ export async function exportPptx(
   }
 
   const blob = (await pptx.write({ outputType: 'blob' })) as Blob;
-  saveAs(blob, `${options.fileName || conversation.title || 'chat'}.pptx`);
+  await downloadBlob(blob, `${options.fileName || conversation.title || 'chat'}.pptx`);
 }

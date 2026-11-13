@@ -13,10 +13,10 @@ import {
   Footer,
   PageNumber,
 } from 'docx';
-import { saveAs } from 'file-saver';
 import type { Conversation, ExportOptions } from '../parser/types';
 import { filterMessages } from '../parser/filters';
 import { WATERMARK_TEXT } from '../branding';
+import { downloadBlob } from './downloadHelper';
 
 const ROLE_CONFIG: Record<
   string,
@@ -33,7 +33,6 @@ function parseMarkdownTable(tableLines: string[]): Table | null {
   const rows: TableRow[] = [];
 
   tableLines.forEach((line, rowIndex) => {
-    // Skip separator line (|---|---|)
     if (/^[|\s:-]+$/.test(line)) return;
 
     const cells = line
@@ -55,7 +54,7 @@ function parseMarkdownTable(tableLines: string[]): Table | null {
                   text: cellText,
                   bold: isHeader,
                   font: 'Calibri',
-                  size: 20, // 10pt
+                  size: 20,
                 }),
               ],
             }),
@@ -87,14 +86,12 @@ function buildContentElements(content: string): (Paragraph | Table)[] {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // Handle code block
     if (line.startsWith('```')) {
       if (!inCodeBlock) {
         inCodeBlock = true;
         codeLines = [];
       } else {
         inCodeBlock = false;
-        // Flush code block
         codeLines.forEach((cLine) => {
           elements.push(
             new Paragraph({
@@ -102,7 +99,7 @@ function buildContentElements(content: string): (Paragraph | Table)[] {
                 new TextRun({
                   text: cLine,
                   font: 'Consolas',
-                  size: 19, // 9.5pt
+                  size: 19,
                   color: 'F8FAFC',
                 }),
               ],
@@ -121,7 +118,6 @@ function buildContentElements(content: string): (Paragraph | Table)[] {
       continue;
     }
 
-    // Handle markdown table
     if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
       inTable = true;
       tableLines.push(line.trim());
@@ -133,7 +129,6 @@ function buildContentElements(content: string): (Paragraph | Table)[] {
       tableLines = [];
     }
 
-    // Handle normal text & lists
     if (line.trim() === '') {
       elements.push(new Paragraph({ spacing: { before: 60, after: 60 } }));
     } else {
@@ -147,7 +142,7 @@ function buildContentElements(content: string): (Paragraph | Table)[] {
             new TextRun({
               text: line,
               font: 'Calibri',
-              size: 22, // 11pt
+              size: 22,
               color: '1E293B',
             }),
           ],
@@ -158,7 +153,6 @@ function buildContentElements(content: string): (Paragraph | Table)[] {
     }
   }
 
-  // Flush trailing table if file ends with table
   if (inTable && tableLines.length > 0) {
     const tbl = parseMarkdownTable(tableLines);
     if (tbl) elements.push(tbl);
@@ -172,10 +166,8 @@ export async function exportDocx(
   options: ExportOptions
 ): Promise<void> {
   const messages = filterMessages(conversation.messages, options.filterMode);
-
   const sections: (Paragraph | Table)[] = [];
 
-  // Title
   if (options.includeTitle !== false && conversation.title) {
     sections.push(
       new Paragraph({
@@ -184,7 +176,7 @@ export async function exportDocx(
             text: conversation.title,
             bold: true,
             font: 'Calibri',
-            size: 38, // 19pt
+            size: 38,
             color: '0F172A',
           }),
         ],
@@ -228,7 +220,6 @@ export async function exportDocx(
   for (const msg of messages) {
     const config = ROLE_CONFIG[msg.role] || ROLE_CONFIG.system;
 
-    // Role heading
     sections.push(
       new Paragraph({
         children: [
@@ -236,7 +227,7 @@ export async function exportDocx(
             text: `${config.emoji} ${config.label}`,
             bold: true,
             font: 'Calibri',
-            size: 26, // 13pt
+            size: 26,
             color: config.color,
           }),
         ],
@@ -245,10 +236,8 @@ export async function exportDocx(
       })
     );
 
-    // Message elements
     sections.push(...buildContentElements(msg.content));
 
-    // Divider
     sections.push(
       new Paragraph({
         spacing: { before: 140, after: 140 },
@@ -264,7 +253,6 @@ export async function exportDocx(
     );
   }
 
-  // Document with footer containing page numbers and right-aligned watermark
   const doc = new Document({
     sections: [
       {
@@ -313,5 +301,5 @@ export async function exportDocx(
   });
 
   const blob = await Packer.toBlob(doc);
-  saveAs(blob, `${options.fileName || conversation.title || 'chat'}.docx`);
+  await downloadBlob(blob, `${options.fileName || conversation.title || 'chat'}.docx`);
 }

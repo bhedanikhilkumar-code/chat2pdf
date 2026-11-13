@@ -14,18 +14,24 @@ import {
 export function useExport() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
+  const [progressText, setProgressText] = useState<string | null>(null);
   const [activeFormat, setActiveFormat] = useState<string | null>(null);
 
   const runExport = useCallback(
     async (conversation: Conversation, options: ExportOptions) => {
       setLoading(true);
       setError(null);
+      setErrorDetails(null);
+      setProgressText(null);
       setActiveFormat(options.format);
 
       try {
         switch (options.format) {
           case 'pdf':
-            await exportPdf(conversation, options);
+            await exportPdf(conversation, options, (current, total) => {
+              setProgressText(`Rendering page ${current} of ${total}...`);
+            });
             break;
           case 'pptx':
             await exportPptx(conversation, options);
@@ -52,20 +58,25 @@ export function useExport() {
           default:
             throw new Error(`Unsupported format: ${options.format}`);
         }
-      } catch (err) {
-        const message =
-          err instanceof Error ? err.message : 'Export failed. Please try again.';
+      } catch (err: any) {
+        const message = err?.message || 'Export failed. Please try again.';
+        const stack = err?.stack || String(err);
         setError(message);
-        console.error('Export error:', err);
+        setErrorDetails(stack);
+        console.error('Export error caught:', err);
       } finally {
         setLoading(false);
         setActiveFormat(null);
+        setProgressText(null);
       }
     },
     []
   );
 
-  const clearError = useCallback(() => setError(null), []);
+  const clearError = useCallback(() => {
+    setError(null);
+    setErrorDetails(null);
+  }, []);
 
-  return { runExport, loading, error, activeFormat, clearError };
+  return { runExport, loading, error, errorDetails, progressText, activeFormat, clearError };
 }

@@ -1,5 +1,4 @@
 import jsPDF from 'jspdf';
-import { saveAs } from 'file-saver';
 import type {
   Conversation,
   ExportOptions,
@@ -8,8 +7,8 @@ import type {
 } from '../parser/types';
 import { filterMessages } from '../parser/filters';
 import { WATERMARK_TEXT } from '../branding';
+import { downloadBlob } from './downloadHelper';
 
-// A4 at 96 DPI
 const PAGE_W = 794;
 const PAGE_H = 1123;
 const MARGIN_LEFT = 70;
@@ -18,21 +17,17 @@ const MARGIN_TOP = 70;
 const MARGIN_BOTTOM = 70;
 const CONTENT_WIDTH = PAGE_W - MARGIN_LEFT - MARGIN_RIGHT;
 
-// Ruled line spacing
 const RULED_SPACING = 30;
-// Graph paper cell size
 const GRAPH_CELL = 20;
 
 function drawPaperBackground(
   ctx: CanvasRenderingContext2D,
   paperType: PaperType
 ): void {
-  // White/cream background
   ctx.fillStyle = '#fffef9';
   ctx.fillRect(0, 0, PAGE_W, PAGE_H);
 
   if (paperType === 'ruled') {
-    // Red margin line
     ctx.strokeStyle = '#e8b4b8';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
@@ -40,7 +35,6 @@ function drawPaperBackground(
     ctx.lineTo(MARGIN_LEFT - 10, PAGE_H);
     ctx.stroke();
 
-    // Blue horizontal lines
     ctx.strokeStyle = '#c8d8e8';
     ctx.lineWidth = 0.5;
     for (let y = MARGIN_TOP; y < PAGE_H - MARGIN_BOTTOM; y += RULED_SPACING) {
@@ -64,7 +58,6 @@ function drawPaperBackground(
       ctx.lineTo(PAGE_W, y);
       ctx.stroke();
     }
-    // Darker lines every 5 cells
     ctx.strokeStyle = '#b0b8c0';
     ctx.lineWidth = 0.6;
     for (let x = 0; x < PAGE_W; x += GRAPH_CELL * 5) {
@@ -90,7 +83,6 @@ function seededRandom(seed: number): () => number {
   };
 }
 
-// Word-wrapping that measures actual text width on canvas and breaks long strings without spaces
 function wrapTextCanvas(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -111,7 +103,6 @@ function wrapTextCanvas(
     for (let i = 0; i < words.length; i++) {
       const word = words[i];
 
-      // If a single word/URL is wider than maxWidth, break it character-by-character
       if (ctx.measureText(word).width > maxWidth) {
         if (currentLine) {
           result.push(currentLine);
@@ -174,7 +165,6 @@ export async function exportHandwriting(
 
   const messages = filterMessages(conversation.messages, options.filterMode);
 
-  // Measure canvas
   const measureCanvas = document.createElement('canvas');
   const measureCtx = measureCanvas.getContext('2d')!;
   measureCtx.font = `${hw.fontSize}px "${hw.font}", "Kalam", cursive, sans-serif`;
@@ -209,7 +199,6 @@ export async function exportHandwriting(
     allSegments.push({ text: '', isLabel: false });
   }
 
-  // Render pages
   const pageCanvases: HTMLCanvasElement[] = [];
   let segIdx = 0;
   const rng = seededRandom(42);
@@ -228,7 +217,7 @@ export async function exportHandwriting(
       const seg = allSegments[segIdx];
 
       if (y + lineHeight > maxContentY) {
-        break; // break to next page
+        break;
       }
 
       if (seg.text === '') {
@@ -246,7 +235,6 @@ export async function exportHandwriting(
         ctx.restore();
         y += lineHeight * 1.2;
       } else {
-        // Natural jitter for handwritten feel
         const xOffset = hw.jitter ? (rng() - 0.5) * 2 : 0;
         const yOffset = hw.jitter ? (rng() - 0.5) * 1.5 : 0;
         const rot = hw.jitter ? (rng() - 0.5) * 0.008 : 0;
@@ -267,7 +255,6 @@ export async function exportHandwriting(
       segIdx++;
     }
 
-    // Always draw bottom-right watermark on each handwriting page
     drawWatermark(ctx);
     pageCanvases.push(canvas);
   }
@@ -298,17 +285,20 @@ export async function exportHandwriting(
     }
 
     const blob = doc.output('blob');
-    saveAs(blob, `${fileName}.pdf`);
+    await downloadBlob(blob, `${fileName}.pdf`);
   } else {
     const canvas = pageCanvases[0];
-    canvas.toBlob(
-      (blob) => {
-        if (blob) {
-          saveAs(blob, `${fileName}.jpg`);
-        }
-      },
-      'image/jpeg',
-      0.92
-    );
+    await new Promise<void>((resolve) => {
+      canvas.toBlob(
+        async (blob) => {
+          if (blob) {
+            await downloadBlob(blob, `${fileName}.jpg`);
+          }
+          resolve();
+        },
+        'image/jpeg',
+        0.92
+      );
+    });
   }
 }

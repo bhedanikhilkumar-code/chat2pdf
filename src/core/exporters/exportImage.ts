@@ -1,9 +1,9 @@
 import { toPng, toJpeg } from 'html-to-image';
-import { saveAs } from 'file-saver';
 import type { Conversation, ExportOptions, ImageMode } from '../parser/types';
 import { filterMessages } from '../parser/filters';
 import { renderMarkdownToHtml, PAGE_STYLES } from '../renderer/pageRenderer';
 import { WATERMARK_TEXT } from '../branding';
+import { downloadBlob } from './downloadHelper';
 
 export async function exportImage(
   conversation: Conversation,
@@ -82,21 +82,21 @@ export async function exportImage(
   document.body.appendChild(container);
 
   try {
-    // Give fonts and twemoji images time to settle
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 200));
 
     const exportFn = format === 'jpg' ? toJpeg : toPng;
     const dataUrl = await exportFn(container, {
       quality: 0.95,
-      pixelRatio: 2,
-      cacheBust: true,
+      pixelRatio: 1.5,
+      skipFonts: true,
+      cacheBust: false,
     });
 
     const res = await fetch(dataUrl);
     const blob = await res.blob();
     const ext = format === 'jpg' ? 'jpg' : 'png';
     const filename = `${options.fileName || conversation.title || 'chat'}_${mode}.${ext}`;
-    saveAs(blob, filename);
+    await downloadBlob(blob, filename);
   } finally {
     document.body.removeChild(container);
   }

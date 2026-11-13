@@ -1,6 +1,5 @@
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
-import twemoji from 'twemoji';
 import { WATERMARK_TEXT } from '../branding';
 import type { ChatMessage, Conversation, ExportOptions } from '../parser/types';
 import { filterMessages } from '../parser/filters';
@@ -12,8 +11,6 @@ export const A4_MARGIN_PX = 48; // ~12.7mm margin
 export const USABLE_HEIGHT_PX = A4_HEIGHT_PX - A4_MARGIN_PX * 2 - 36; // leave space for footer
 
 export const PAGE_STYLES = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Noto+Sans+Devanagari:wght@400;600&display=swap');
-
   .chat2pdf-a4-page {
     width: 794px;
     height: 1123px;
@@ -22,7 +19,7 @@ export const PAGE_STYLES = `
     background: #ffffff;
     color: #1f2937;
     position: relative;
-    font-family: 'Inter', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     font-size: 13.5px;
     line-height: 1.6;
     overflow: hidden;
@@ -111,7 +108,7 @@ export const PAGE_STYLES = `
     color: #f8fafc;
     padding: 10px 12px;
     border-radius: 6px;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'JetBrains Mono', Consolas, monospace;
     font-size: 11.5px;
     line-height: 1.45;
     overflow-x: auto;
@@ -121,7 +118,7 @@ export const PAGE_STYLES = `
   }
 
   .chat2pdf-body code {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'JetBrains Mono', Consolas, monospace;
     font-size: 12px;
     background: rgba(0, 0, 0, 0.06);
     padding: 2px 4px;
@@ -161,14 +158,6 @@ export const PAGE_STYLES = `
     margin-bottom: 3px;
   }
 
-  img.emoji {
-    height: 1.15em;
-    width: 1.15em;
-    margin: 0 0.1em 0 0.15em;
-    vertical-align: -0.2em;
-    display: inline;
-  }
-
   .chat2pdf-footer {
     height: 24px;
     display: flex;
@@ -189,12 +178,7 @@ export const PAGE_STYLES = `
 
 export function renderMarkdownToHtml(markdown: string): string {
   const rawHtml = marked.parse(markdown, { gfm: true, breaks: true }) as string;
-  const cleanHtml = DOMPurify.sanitize(rawHtml);
-  return twemoji.parse(cleanHtml, {
-    folder: 'svg',
-    ext: '.svg',
-    base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
-  });
+  return DOMPurify.sanitize(rawHtml);
 }
 
 export interface RenderedPage {
@@ -262,12 +246,12 @@ export function buildPaginatedDom(
     const msgEl = document.createElement('div');
     msgEl.className = `chat2pdf-msg ${roleClass}`;
     msgEl.innerHTML = `
-      <div class="chat2pdf-msg-role">${twemoji.parse(roleIcon)}</div>
+      <div class="chat2pdf-msg-role">${roleIcon}</div>
       <div class="chat2pdf-body">${bodyHtml}</div>
     `;
 
     measureContainer.appendChild(msgEl);
-    const msgHeight = msgEl.offsetHeight + 14; // margin-bottom
+    const msgHeight = msgEl.offsetHeight + 14;
     measureContainer.removeChild(msgEl);
 
     const availableHeight = USABLE_HEIGHT_PX;
@@ -276,21 +260,16 @@ export function buildPaginatedDom(
       pages[currentPageIndex].items.push(msgEl);
       currentHeight += msgHeight;
     } else if (msgHeight > availableHeight) {
-      // Very tall message: split by paragraphs / block children
       if (currentHeight > (pages[currentPageIndex].isFirst ? headerHeight + 50 : 50)) {
-        // Move to next page first if page already has content
         pages.push({ isFirst: false, items: [] });
         currentPageIndex++;
         currentHeight = 0;
       }
-
-      // Add as much as fits or keep together
       pages[currentPageIndex].items.push(msgEl);
       pages.push({ isFirst: false, items: [] });
       currentPageIndex++;
       currentHeight = 0;
     } else {
-      // Fits on next fresh page
       pages.push({ isFirst: false, items: [] });
       currentPageIndex++;
       pages[currentPageIndex].items.push(msgEl);
@@ -300,7 +279,6 @@ export function buildPaginatedDom(
 
   document.body.removeChild(measureContainer);
 
-  // Construct final page DOM elements
   const totalPages = pages.length;
   const pageElements: HTMLElement[] = [];
 

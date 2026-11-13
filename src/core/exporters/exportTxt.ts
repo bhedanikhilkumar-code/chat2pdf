@@ -1,7 +1,7 @@
-import { saveAs } from 'file-saver';
 import type { Conversation, ExportOptions } from '../parser/types';
 import { filterMessages } from '../parser/filters';
 import { WATERMARK_TEXT } from '../branding';
+import { downloadBlob } from './downloadHelper';
 
 const ROLE_LABELS: Record<string, string> = {
   user: 'User',
@@ -19,7 +19,7 @@ export async function exportTxt(
     const blob = new Blob([`No messages to export.\n\n---\n${WATERMARK_TEXT}\n`], {
       type: 'text/plain;charset=utf-8',
     });
-    saveAs(blob, `${options.fileName || conversation.title || 'chat'}.txt`);
+    await downloadBlob(blob, `${options.fileName || conversation.title || 'chat'}.txt`);
     return;
   }
 
@@ -46,5 +46,5 @@ export async function exportTxt(
 
   const text = parts.join('\n');
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-  saveAs(blob, `${options.fileName || conversation.title || 'chat'}.txt`);
+  await downloadBlob(blob, `${options.fileName || conversation.title || 'chat'}.txt`);
 }

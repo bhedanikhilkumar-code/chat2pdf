@@ -1,7 +1,7 @@
-import { saveAs } from 'file-saver';
 import type { Conversation, ExportOptions } from '../parser/types';
 import { filterMessages } from '../parser/filters';
 import { WATERMARK_TEXT } from '../branding';
+import { downloadBlob } from './downloadHelper';
 
 const ROLE_EMOJI: Record<string, string> = {
   user: '👤',
@@ -19,7 +19,7 @@ export async function exportMarkdown(
     const blob = new Blob([`*No messages to export.*\n\n---\n*${WATERMARK_TEXT}*\n`], {
       type: 'text/markdown;charset=utf-8',
     });
-    saveAs(blob, `${options.fileName || conversation.title || 'chat'}.md`);
+    await downloadBlob(blob, `${options.fileName || conversation.title || 'chat'}.md`);
     return;
   }
 
@@ -44,14 +44,12 @@ export async function exportMarkdown(
     parts.push(msg.content);
     parts.push('');
 
-    // Add horizontal rule between messages
     if (i < messages.length - 1) {
       parts.push('---');
       parts.push('');
     }
   }
 
-  // Footer watermark
   parts.push('---');
   parts.push(`*${WATERMARK_TEXT}*`);
   parts.push('');
@@ -60,5 +58,5 @@ export async function exportMarkdown(
   const blob = new Blob([markdown], {
     type: 'text/markdown;charset=utf-8',
   });
-  saveAs(blob, `${options.fileName || conversation.title || 'chat'}.md`);
+  await downloadBlob(blob, `${options.fileName || conversation.title || 'chat'}.md`);
 }
