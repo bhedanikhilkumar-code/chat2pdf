@@ -6,7 +6,12 @@ export const claudeSelectors: SiteSelectors = {
   assistantMessage: '[class*=assistant], [data-testid*=assistant-message], [class*=font-claude-message], div[class*=claude]',
   messageContent: '[class*=message-content], [class*=markdown], .prose, div[class*=progressive-markdown]',
   chatTitle: '[class*=conversation-title], [data-testid=conversation-title], h1',
+  scrollContainer: 'div[class*="overflow-y-auto"], [class*="scroll-container"], main',
+  loadEarlierButton: 'button[class*="load-older"], button:has-text("Load older")',
+  expandButtons: 'button[aria-label*="Expand"], button:has-text("Show more")',
+  attachmentContainer: '[class*="FileChip"], [class*="Attachment"], [class*="file-pill"]',
   junkSelectors: [
+
     'button',
     '.copy-button',
     '.feedback-buttons',

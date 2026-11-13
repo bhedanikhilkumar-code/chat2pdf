@@ -1,4 +1,16 @@
-export type { ChatMessage, Conversation, ExportFormat, ExportOptions, FilterMode, HandwritingOptions, ImageMode, PaperType, SiteSelectors } from './parser/types';
+export type {
+  Attachment,
+  ChatMessage,
+  Conversation,
+  ExportFormat,
+  ExportOptions,
+  FilterMode,
+  HandwritingOptions,
+  ImageMode,
+  PaperType,
+  SiteSelectors,
+} from './parser/types';
+
 export { parseText, parseExtracted } from './parser/parseText';
 export { cleanText, cleanHtmlContent } from './parser/cleaners';
 export { filterMessages } from './parser/filters';

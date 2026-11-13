@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mock Virtualized Chat</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 20px; }
+    #scroll-container {
+      height: 400px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      padding: 10px;
+      position: relative;
+    }
+    .spacer { height: 30000px; position: relative; }
+    .message-turn {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      padding: 8px 12px;
+      margin: 4px 0;
+      border-radius: 8px;
+      background: #f1f5f9;
+    }
+    .user-turn { background: #e0f2fe; }
+  </style>
+</head>
+<body>
+  <h1 id="title">Mock Long Conversation (300 Messages)</h1>
+  <div id="scroll-container">
+    <div class="spacer" id="spacer"></div>
+  </div>
+
+  <script>
+    const totalMessages = 300;
+    const itemHeight = 90;
+    const container = document.getElementById('scroll-container');
+    const spacer = document.getElementById('spacer');
+    spacer.style.height = (totalMessages * itemHeight) + 'px';
+
+    // Virtual window renderer (only renders ~10 visible turns at a time)
+    function render() {
+      // Remove old turns
+      const existing = document.querySelectorAll('.message-turn');
+      existing.forEach(el => el.remove());
+
+      const scrollTop = container.scrollTop;
+      const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - 2);
+      const endIndex = Math.min(totalMessages - 1, Math.floor((scrollTop + 400) / itemHeight) + 2);
+
+      for (let i = startIndex; i <= endIndex; i++) {
+        const turn = document.createElement('div');
+        const isUser = i % 2 === 0;
+        turn.className = 'message-turn ' + (isUser ? 'user-turn' : 'agent-turn');
+        turn.setAttribute('data-testid', 'conversation-turn');
+        turn.setAttribute('data-message-id', 'msg_' + i);
+        turn.setAttribute('data-message-author-role', isUser ? 'user' : 'assistant');
+        turn.style.top = (i * itemHeight) + 'px';
+
+        const roleSpan = document.createElement('strong');
+        roleSpan.textContent = isUser ? 'User: ' : 'Assistant: ';
+        turn.appendChild(roleSpan);
+
+        const content = document.createElement('span');
+        content.className = 'markdown';
+        content.textContent = 'Message index ' + i + ' content with details about step ' + i;
+        turn.appendChild(content);
+
+        container.appendChild(turn);
+      }
+    }
+
+    container.addEventListener('scroll', render);
+    // Start scrolled to bottom as real chats are
+    container.scrollTop = totalMessages * itemHeight;
+    render();
+  </script>
+</body>
+</html>

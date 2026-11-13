@@ -1,9 +1,16 @@
-// Core types for Chat2PDF
+export interface Attachment {
+  name: string;
+  kind?: string; // 'image', 'document', 'pdf', 'code', 'archive', etc.
+  size?: string;
+  thumbnail?: string; // data URL or small base64
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   index: number;
   timestamp?: string;
+  attachments?: Attachment[];
 }
 
 export interface Conversation {
@@ -16,7 +23,6 @@ export interface Conversation {
 export type ExportFormat = 'pdf' | 'pptx' | 'csv' | 'txt' | 'md' | 'jpg' | 'png' | 'docx' | 'handwriting';
 
 export type ImageMode = 'long' | 'short' | 'card';
-
 
 export type FilterMode = 'all' | 'answers-only' | 'questions-only' | 'summary';
 
@@ -31,7 +37,6 @@ export interface HandwritingOptions {
   lineSpacing?: number;
   jitter?: boolean;
 }
-
 
 export interface ExportOptions {
   format: ExportFormat;
@@ -48,5 +53,10 @@ export interface SiteSelectors {
   assistantMessage: string;
   messageContent: string;
   chatTitle?: string;
+  scrollContainer?: string;
+  loadEarlierButton?: string;
+  expandButtons?: string;
+  attachmentContainer?: string;
   junkSelectors: string[];
 }
+

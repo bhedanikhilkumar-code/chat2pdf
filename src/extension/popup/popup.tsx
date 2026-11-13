@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Download, ExternalLink, RefreshCw, AlertCircle, CheckCircle2, Globe, Sparkles } from 'lucide-react';
+import { Download, ExternalLink, RefreshCw, AlertCircle, CheckCircle2, Globe, XCircle, AlertTriangle } from 'lucide-react';
 
 const Popup: React.FC = () => {
   const [status, setStatus] = useState<string>('');
@@ -8,6 +8,7 @@ const Popup: React.FC = () => {
   const [currentHost, setCurrentHost] = useState<string>('');
   const [isSupported, setIsSupported] = useState<boolean>(false);
   const [messageCount, setMessageCount] = useState<number | null>(null);
+  const [sanityWarning, setSanityWarning] = useState<string | null>(null);
 
   const supportedHosts = [
     'chatgpt.com',
@@ -29,7 +30,6 @@ const Popup: React.FC = () => {
             const supported = supportedHosts.some((h) => host.includes(h));
             setIsSupported(supported);
 
-            // Attempt silent preliminary check to see message count if already available
             if (tabs[0]?.id && supported) {
               chrome.tabs.sendMessage(tabs[0].id, { action: 'EXTRACT_CHAT' }, (res) => {
                 if (res?.success && res.data?.messages) {
@@ -40,12 +40,23 @@ const Popup: React.FC = () => {
           } catch (e) {}
         }
       });
+
+      // Listen for progressive load updates
+      const listener = (msg: any) => {
+        if (msg.action === 'EXTRACTION_PROGRESS') {
+          setMessageCount(msg.count);
+          setStatus(msg.status);
+        }
+      };
+      chrome.runtime.onMessage.addListener(listener);
+      return () => chrome.runtime.onMessage.removeListener(listener);
     }
   }, []);
 
   const handleExport = async () => {
     setLoading(true);
-    setStatus('Extracting conversation...');
+    setStatus('Loading conversation & scrolling older messages...');
+    setSanityWarning(null);
 
     if (typeof chrome === 'undefined' || !chrome.tabs) {
       setStatus('Error: Chrome extension APIs not available');
@@ -61,7 +72,7 @@ const Popup: React.FC = () => {
         return;
       }
 
-      chrome.tabs.sendMessage(tab.id, { action: 'EXTRACT_CHAT' }, (response) => {
+      chrome.tabs.sendMessage(tab.id, { action: 'EXTRACT_FULL_CHAT' }, (response) => {
         if (chrome.runtime.lastError) {
           setStatus('Cannot connect to page. Please refresh the chat page and try again.');
           setLoading(false);
@@ -77,7 +88,19 @@ const Popup: React.FC = () => {
           }
 
           setMessageCount(messages.length);
-          setStatus(`Extracted ${messages.length} messages! Opening exporter...`);
+
+          // Sanity check: verify plausible role alternation
+          let nonAlternating = 0;
+          for (let i = 1; i < messages.length; i++) {
+            if (messages[i].role === messages[i - 1].role) nonAlternating++;
+          }
+          if (messages.length < 2) {
+            setSanityWarning('Extracted only 1 message. Older messages may still be loading.');
+          } else if (nonAlternating > messages.length * 0.4) {
+            setSanityWarning('Unusual message role sequence detected. Some turns may have multiple parts.');
+          }
+
+          setStatus(`Successfully extracted ${messages.length} messages! Opening exporter...`);
 
           chrome.storage.local.set(
             {
@@ -104,6 +127,17 @@ const Popup: React.FC = () => {
     }
   };
 
+  const handleCancel = async () => {
+    if (typeof chrome !== 'undefined' && chrome.tabs) {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab?.id) {
+        chrome.tabs.sendMessage(tab.id, { action: 'CANCEL_EXTRACTION' });
+      }
+    }
+    setLoading(false);
+    setStatus('Extraction cancelled.');
+  };
+
   const openStandaloneExporter = () => {
     if (typeof chrome !== 'undefined' && chrome.runtime) {
       const webAppUrl = chrome.runtime.getURL('web/index.html');
@@ -122,7 +156,7 @@ const Popup: React.FC = () => {
           </h2>
         </div>
         <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '12px', backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe' }}>
-          MV3 Extension
+          Full-Chat Extraction
         </span>
       </div>
 
@@ -151,34 +185,78 @@ const Popup: React.FC = () => {
       </div>
 
       {/* Primary Action Button */}
-      <button
-        onClick={handleExport}
-        disabled={loading}
-        style={{
-          width: '100%',
-          padding: '11px 16px',
-          backgroundColor: loading ? '#93c5fd' : '#2563eb',
-          color: '#ffffff',
-          border: 'none',
-          borderRadius: '12px',
-          fontSize: '13.5px',
-          fontWeight: 600,
-          cursor: loading ? 'not-allowed' : 'pointer',
-          boxShadow: '0 2px 8px rgba(37,99,235,0.25)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '8px',
-          transition: 'all 0.15s ease',
-        }}
-      >
-        {loading ? (
-          <RefreshCw style={{ width: '16px', height: '16px', animation: 'spin 1s linear infinite' }} />
-        ) : (
-          <Download style={{ width: '16px', height: '16px' }} />
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <button
+          onClick={handleExport}
+          disabled={loading}
+          style={{
+            flex: 1,
+            padding: '11px 16px',
+            backgroundColor: loading ? '#93c5fd' : '#2563eb',
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: '12px',
+            fontSize: '13.5px',
+            fontWeight: 600,
+            cursor: loading ? 'not-allowed' : 'pointer',
+            boxShadow: '0 2px 8px rgba(37,99,235,0.25)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+          }}
+        >
+          {loading ? (
+            <RefreshCw style={{ width: '16px', height: '16px', animation: 'spin 1s linear infinite' }} />
+          ) : (
+            <Download style={{ width: '16px', height: '16px' }} />
+          )}
+          <span>{loading ? 'Collecting...' : 'Export this chat'}</span>
+        </button>
+
+        {loading && (
+          <button
+            onClick={handleCancel}
+            style={{
+              padding: '11px 14px',
+              backgroundColor: '#fee2e2',
+              color: '#dc2626',
+              border: '1px solid #fecaca',
+              borderRadius: '12px',
+              fontSize: '12.5px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <XCircle style={{ width: '15px', height: '15px' }} />
+            <span>Cancel</span>
+          </button>
         )}
-        <span>{loading ? 'Extracting...' : 'Export this chat'}</span>
-      </button>
+      </div>
+
+      {/* Sanity warning if any */}
+      {sanityWarning && (
+        <div
+          style={{
+            marginTop: '10px',
+            padding: '8px 10px',
+            borderRadius: '8px',
+            fontSize: '11px',
+            backgroundColor: '#fffbeb',
+            color: '#b45309',
+            border: '1px solid #fde68a',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '6px',
+          }}
+        >
+          <AlertTriangle style={{ width: '14px', height: '14px', marginTop: '1px', flexShrink: 0 }} />
+          <span>{sanityWarning}</span>
+        </div>
+      )}
 
       {/* Status Message */}
       {status && (
