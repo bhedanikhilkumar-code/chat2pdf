@@ -2,18 +2,42 @@ import PptxGenJS from 'pptxgenjs';
 import { saveAs } from 'file-saver';
 import type { Conversation, ExportOptions } from '../parser/types';
 import { filterMessages } from '../parser/filters';
+import { WATERMARK_TEXT } from '../branding';
 
 const COLORS = {
-  titleBg: '1a1a2e',
+  titleBg: '0f172a',
   titleText: 'ffffff',
-  userBg: 'e8f0fe',
-  userLabel: '1967d2',
-  assistantBg: 'f0f4f0',
-  assistantLabel: '137333',
-  systemBg: 'f5f5f5',
-  systemLabel: '666666',
-  bodyText: '333333',
+  userBg: 'f0fdf4',
+  userLabel: '15803d',
+  assistantBg: 'f8fafc',
+  assistantLabel: '0369a1',
+  systemBg: 'f1f5f9',
+  systemLabel: '475569',
+  bodyText: '1e293b',
+  codeBg: '1e293b',
+  codeText: 'f8fafc',
+  tableBorder: 'cbd5e1',
+  tableHeader: 'f1f5f9',
+  watermark: '94a3b8',
 };
+
+function splitTextIntoChunks(text: string, maxLen = 700): string[] {
+  if (text.length <= maxLen) return [text];
+  const paragraphs = text.split('\n\n');
+  const chunks: string[] = [];
+  let current = '';
+
+  for (const para of paragraphs) {
+    if ((current + '\n\n' + para).length > maxLen) {
+      if (current) chunks.push(current.trim());
+      current = para;
+    } else {
+      current = current ? current + '\n\n' + para : para;
+    }
+  }
+  if (current) chunks.push(current.trim());
+  return chunks.length > 0 ? chunks : [text];
+}
 
 export async function exportPptx(
   conversation: Conversation,
@@ -21,57 +45,91 @@ export async function exportPptx(
 ): Promise<void> {
   const messages = filterMessages(conversation.messages, options.filterMode);
   const pptx = new PptxGenJS();
-  pptx.layout = 'LAYOUT_WIDE';
+  pptx.layout = 'LAYOUT_WIDE'; // 13.33 x 7.5 inches
 
-  // Title slide
+  // Define master slide layout with bottom-right watermark
+  pptx.defineSlideMaster({
+    title: 'MASTER_SLIDE',
+    background: { color: 'ffffff' },
+    objects: [
+      {
+        text: {
+          text: WATERMARK_TEXT,
+          options: {
+            x: 9.5,
+            y: 7.05,
+            w: 3.5,
+            h: 0.35,
+            fontSize: 9,
+            color: COLORS.watermark,
+            align: 'right',
+            fontFace: 'Arial',
+          },
+        },
+      },
+    ],
+  });
+
+  // Title Slide
   const titleSlide = pptx.addSlide();
   titleSlide.background = { color: COLORS.titleBg };
   titleSlide.addText(conversation.title || 'Chat Export', {
-    x: 0.8,
-    y: 1.5,
-    w: '85%',
+    x: 1.0,
+    y: 1.8,
+    w: 11.3,
     h: 1.5,
-    fontSize: 36,
+    fontSize: 34,
     bold: true,
     color: COLORS.titleText,
     fontFace: 'Arial',
   });
   titleSlide.addText(
-    `Source: ${conversation.source} | ${conversation.exportedAt}`,
+    `Source: ${conversation.source}  |  Exported: ${new Date(conversation.exportedAt).toLocaleDateString()}`,
     {
-      x: 0.8,
-      y: 3.2,
-      w: '85%',
+      x: 1.0,
+      y: 3.4,
+      w: 11.3,
       fontSize: 14,
-      color: '999999',
+      color: '94a3b8',
       fontFace: 'Arial',
     }
   );
   titleSlide.addText(`${messages.length} messages`, {
-    x: 0.8,
-    y: 3.8,
-    w: '85%',
+    x: 1.0,
+    y: 4.0,
+    w: 11.3,
     fontSize: 12,
-    color: '777777',
+    color: '64748b',
+    fontFace: 'Arial',
+  });
+  // Watermark on title slide
+  titleSlide.addText(WATERMARK_TEXT, {
+    x: 9.5,
+    y: 7.05,
+    w: 3.5,
+    h: 0.35,
+    fontSize: 9,
+    color: '64748b',
+    align: 'right',
     fontFace: 'Arial',
   });
 
   if (messages.length === 0) {
-    const emptySlide = pptx.addSlide();
+    const emptySlide = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
     emptySlide.addText('No messages to export.', {
       x: 1,
-      y: 2,
-      w: '80%',
-      fontSize: 20,
-      color: '999999',
-      fontFace: 'Arial',
+      y: 3,
+      w: 11.3,
+      fontSize: 18,
+      color: '94a3b8',
       align: 'center',
     });
   }
 
-  // Pair messages as Q&A
-  let i = 0;
+  // Iterate messages and format into clean slides
   let slideNum = 1;
+  let i = 0;
+
   while (i < messages.length) {
     const userMsg = messages[i];
     const assistantMsg =
@@ -79,142 +137,153 @@ export async function exportPptx(
         ? messages[i + 1]
         : null;
 
-    const slide = pptx.addSlide();
+    if (userMsg.role === 'user' && assistantMsg) {
+      // Split long assistant response into multiple continuation slides if needed
+      const answerChunks = splitTextIntoChunks(assistantMsg.content, 900);
 
-    // Slide number
-    slide.addText(`${slideNum}`, {
-      x: 12.2,
-      y: 6.8,
-      w: 0.8,
-      fontSize: 10,
-      color: 'bbbbbb',
-      fontFace: 'Arial',
-      align: 'right',
-    });
+      answerChunks.forEach((chunk, chunkIdx) => {
+        const slide = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
 
-    const isQA = userMsg.role === 'user' && assistantMsg;
+        // Slide page number (bottom left)
+        slide.addText(`Slide ${slideNum}`, {
+          x: 0.8,
+          y: 7.05,
+          w: 2,
+          h: 0.35,
+          fontSize: 9,
+          color: COLORS.watermark,
+          fontFace: 'Arial',
+        });
 
-    if (isQA) {
-      // User question - top section
-      slide.addText('Question', {
-        x: 0.5,
-        y: 0.3,
-        w: 2,
-        fontSize: 12,
-        bold: true,
-        color: COLORS.userLabel,
-        fontFace: 'Arial',
-      });
-      slide.addShape(pptx.ShapeType.roundRect, {
-        x: 0.5,
-        y: 0.6,
-        w: 12,
-        h: 2.2,
-        fill: { color: COLORS.userBg },
-        rectRadius: 0.1,
-      });
-      slide.addText(truncateText(userMsg.content, 600), {
-        x: 0.7,
-        y: 0.7,
-        w: 11.6,
-        h: 2,
-        fontSize: 13,
-        color: COLORS.bodyText,
-        fontFace: 'Arial',
-        valign: 'top',
-        wrap: true,
-      });
+        // Question block (on every slide or continuation)
+        const qTitle = chunkIdx === 0 ? 'Question' : 'Question (cont.)';
+        slide.addText(qTitle, {
+          x: 0.8,
+          y: 0.4,
+          w: 4,
+          h: 0.3,
+          fontSize: 12,
+          bold: true,
+          color: COLORS.userLabel,
+          fontFace: 'Arial',
+        });
+        slide.addShape(pptx.ShapeType.roundRect, {
+          x: 0.8,
+          y: 0.75,
+          w: 11.7,
+          h: 1.6,
+          fill: { color: COLORS.userBg },
+          line: { color: 'bbf7d0', width: 1 },
+          rectRadius: 0.08,
+        });
+        slide.addText(userMsg.content.substring(0, 450), {
+          x: 1.0,
+          y: 0.85,
+          w: 11.3,
+          h: 1.4,
+          fontSize: 11.5,
+          color: COLORS.bodyText,
+          fontFace: 'Arial',
+          valign: 'top',
+          wrap: true,
+        });
 
-      // Assistant answer - bottom section
-      slide.addText('Answer', {
-        x: 0.5,
-        y: 3.1,
-        w: 2,
-        fontSize: 12,
-        bold: true,
-        color: COLORS.assistantLabel,
-        fontFace: 'Arial',
-      });
-      slide.addShape(pptx.ShapeType.roundRect, {
-        x: 0.5,
-        y: 3.4,
-        w: 12,
-        h: 3.2,
-        fill: { color: COLORS.assistantBg },
-        rectRadius: 0.1,
-      });
-      slide.addText(truncateText(assistantMsg.content, 1200), {
-        x: 0.7,
-        y: 3.5,
-        w: 11.6,
-        h: 3,
-        fontSize: 12,
-        color: COLORS.bodyText,
-        fontFace: 'Arial',
-        valign: 'top',
-        wrap: true,
+        // Answer block
+        const aTitle = chunkIdx === 0 ? 'Answer' : `Answer (cont. ${chunkIdx + 1}/${answerChunks.length})`;
+        slide.addText(aTitle, {
+          x: 0.8,
+          y: 2.55,
+          w: 5,
+          h: 0.3,
+          fontSize: 12,
+          bold: true,
+          color: COLORS.assistantLabel,
+          fontFace: 'Arial',
+        });
+        slide.addShape(pptx.ShapeType.roundRect, {
+          x: 0.8,
+          y: 2.9,
+          w: 11.7,
+          h: 3.9,
+          fill: { color: COLORS.assistantBg },
+          line: { color: 'bae6fd', width: 1 },
+          rectRadius: 0.08,
+        });
+
+        // Monospace styling if chunk contains code blocks
+        const hasCode = chunk.includes('```');
+        slide.addText(chunk, {
+          x: 1.0,
+          y: 3.05,
+          w: 11.3,
+          h: 3.6,
+          fontSize: hasCode ? 10.5 : 11.5,
+          color: COLORS.bodyText,
+          fontFace: hasCode ? 'Courier New' : 'Arial',
+          valign: 'top',
+          wrap: true,
+        });
+
+        slideNum++;
       });
 
       i += 2;
     } else {
-      // Single message (not a Q&A pair)
-      const bgColor =
-        userMsg.role === 'user'
-          ? COLORS.userBg
-          : userMsg.role === 'assistant'
-            ? COLORS.assistantBg
-            : COLORS.systemBg;
-      const labelColor =
-        userMsg.role === 'user'
-          ? COLORS.userLabel
-          : userMsg.role === 'assistant'
-            ? COLORS.assistantLabel
-            : COLORS.systemLabel;
+      // Single stand-alone message
+      const slide = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
+      const isUser = userMsg.role === 'user';
+      const labelColor = isUser ? COLORS.userLabel : COLORS.assistantLabel;
+      const bgColor = isUser ? COLORS.userBg : COLORS.assistantBg;
+      const borderColor = isUser ? 'bbf7d0' : 'bae6fd';
 
-      slide.addText(capitalize(userMsg.role), {
-        x: 0.5,
-        y: 0.3,
+      slide.addText(`Slide ${slideNum}`, {
+        x: 0.8,
+        y: 7.05,
+        w: 2,
+        h: 0.35,
+        fontSize: 9,
+        color: COLORS.watermark,
+        fontFace: 'Arial',
+      });
+
+      slide.addText(isUser ? 'User' : 'Assistant', {
+        x: 0.8,
+        y: 0.4,
         w: 3,
-        fontSize: 14,
+        h: 0.3,
+        fontSize: 13,
         bold: true,
         color: labelColor,
         fontFace: 'Arial',
       });
+
       slide.addShape(pptx.ShapeType.roundRect, {
-        x: 0.5,
-        y: 0.7,
-        w: 12,
-        h: 5.6,
-        fill: { color: bgColor },
-        rectRadius: 0.1,
-      });
-      slide.addText(truncateText(userMsg.content, 1800), {
-        x: 0.7,
+        x: 0.8,
         y: 0.8,
-        w: 11.6,
-        h: 5.4,
-        fontSize: 13,
+        w: 11.7,
+        h: 5.9,
+        fill: { color: bgColor },
+        line: { color: borderColor, width: 1 },
+        rectRadius: 0.08,
+      });
+
+      slide.addText(userMsg.content.substring(0, 1600), {
+        x: 1.0,
+        y: 1.0,
+        w: 11.3,
+        h: 5.5,
+        fontSize: 12,
         color: COLORS.bodyText,
         fontFace: 'Arial',
         valign: 'top',
         wrap: true,
       });
 
+      slideNum++;
       i += 1;
     }
-
-    slideNum++;
   }
 
   const blob = (await pptx.write({ outputType: 'blob' })) as Blob;
   saveAs(blob, `${options.fileName || conversation.title || 'chat'}.pptx`);
-}
-
-function truncateText(text: string, maxLen: number): string {
-  if (text.length <= maxLen) return text;
-  return text.substring(0, maxLen).trim() + '…';
-}
-
-function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
 }
