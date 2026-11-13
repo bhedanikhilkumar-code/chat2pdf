@@ -9,8 +9,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'ChatExport',
-        short_name: 'ChatExport',
+        name: 'Chat2PDF',
+        short_name: 'Chat2PDF',
         description: 'Export AI chat conversations to multiple formats',
         theme_color: '#3b82f6',
         background_color: '#ffffff',

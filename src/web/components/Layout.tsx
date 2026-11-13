@@ -17,7 +17,7 @@ export default function Layout({ children }: LayoutProps) {
           <div className="flex items-center gap-2">
             <span className="text-2xl">💬</span>
             <h1 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
-              ChatExport
+              Chat2PDF
             </h1>
           </div>
           <ThemeToggle isDark={isDark} onToggle={toggle} />
@@ -32,7 +32,7 @@ export default function Layout({ children }: LayoutProps) {
       {/* Footer */}
       <footer className="border-t border-gray-200 dark:border-gray-700">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-          ChatExport — Export your AI conversations to any format
+          Chat2PDF — Export your AI conversations to any format
         </div>
       </footer>
     </div>

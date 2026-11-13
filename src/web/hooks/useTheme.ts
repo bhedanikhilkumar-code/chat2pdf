@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 export function useTheme() {
   const [isDark, setIsDark] = useState(() => {
-    const stored = localStorage.getItem('chatexport-theme');
+    const stored = localStorage.getItem('chat2pdf-theme');
     if (stored) return stored === 'dark';
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
@@ -14,13 +14,13 @@ export function useTheme() {
     } else {
       root.classList.remove('dark');
     }
-    localStorage.setItem('chatexport-theme', isDark ? 'dark' : 'light');
+    localStorage.setItem('chat2pdf-theme', isDark ? 'dark' : 'light');
   }, [isDark]);
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const handler = (e: MediaQueryListEvent) => {
-      if (!localStorage.getItem('chatexport-theme')) {
+      if (!localStorage.getItem('chat2pdf-theme')) {
         setIsDark(e.matches);
       }
     };

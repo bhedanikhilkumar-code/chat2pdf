@@ -1,8 +1,8 @@
-# ChatExport 💬
+# Chat2PDF 💬
 
 > Turn AI conversations into beautifully formatted, downloadable documents — 100% locally in your browser. No backend, no servers, no API keys, and offline-capable.
 
-ChatExport ships as **two products from one shared codebase**:
+Chat2PDF ships as **two products from one shared codebase**:
 1. **Web App (PWA)**: Paste chat text from any AI, preview, filter, and export. Works offline once loaded.
 2. **Chrome Extension (Manifest V3)**: Directly extracts chats from active tabs (`chatgpt.com`, `gemini.google.com`, `claude.ai`, `perplexity.ai`, `groq.com`) and opens the exporter UI with one click.
 
@@ -142,7 +142,7 @@ npm run build
    - Claude ([claude.ai](https://claude.ai))
    - Perplexity ([perplexity.ai](https://www.perplexity.ai))
    - Groq ([groq.com](https://groq.com))
-6. Click the **ChatExport** extension icon in your toolbar, then click **"Export this chat"**.
+6. Click the **Chat2PDF** extension icon in your toolbar, then click **"Export this chat"**.
 7. It extracts the conversation DOM directly, cleans junk elements, and launches the local exporter interface with your chat loaded!
 
 ---

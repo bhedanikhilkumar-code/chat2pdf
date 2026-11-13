@@ -58,7 +58,7 @@ const Popup: React.FC = () => {
           // Store in chrome.storage.local
           chrome.storage.local.set(
             {
-              chatexport_extracted_data: {
+              chat2pdf_extracted_data: {
                 messages,
                 title,
                 source,
@@ -87,7 +87,7 @@ const Popup: React.FC = () => {
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
         <span style={{ fontSize: '20px' }}>💬</span>
         <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#111827' }}>
-          ChatExport
+          Chat2PDF
         </h2>
       </div>
 

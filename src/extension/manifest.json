@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "ChatExport",
+  "name": "Chat2PDF",
   "version": "1.0.0",
   "description": "Export AI chat conversations to PDF, PPTX, Word, Markdown, and more",
   "permissions": ["activeTab", "scripting", "storage"],

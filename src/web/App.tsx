@@ -22,7 +22,7 @@ export default function App() {
       const isFromExt = searchParams.get('source') === 'extension';
 
       if (isFromExt) {
-        const stored = localStorage.getItem('chatexport_extracted_data');
+        const stored = localStorage.getItem('chat2pdf_extracted_data');
         if (stored) {
           const parsedData = JSON.parse(stored);
           if (Array.isArray(parsedData.messages) && parsedData.messages.length > 0) {
@@ -33,7 +33,7 @@ export default function App() {
             );
             setConversation(conv);
             setCurrentStep(1);
-            localStorage.removeItem('chatexport_extracted_data');
+            localStorage.removeItem('chat2pdf_extracted_data');
           }
         }
       }

@@ -1,4 +1,4 @@
-// Core types for ChatExport
+// Core types for Chat2PDF
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
