@@ -22,7 +22,8 @@
       "@core/*": ["./src/core/*"],
       "@web/*": ["./src/web/*"],
       "@ext/*": ["./src/extension/*"]
-    }
+    },
+    "types": ["chrome"]
   },
   "include": ["src", "vite-env.d.ts"]
 }

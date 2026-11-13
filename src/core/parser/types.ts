@@ -15,7 +15,8 @@ export interface Conversation {
 
 export type ExportFormat = 'pdf' | 'pptx' | 'csv' | 'txt' | 'md' | 'jpg' | 'png' | 'docx' | 'handwriting';
 
-export type ImageMode = 'long' | 'short';
+export type ImageMode = 'long' | 'short' | 'card';
+
 
 export type FilterMode = 'all' | 'answers-only' | 'questions-only' | 'summary';
 
@@ -27,7 +28,10 @@ export interface HandwritingOptions {
   paperType: PaperType;
   fontSize: number;
   exportAs: 'pdf' | 'jpg';
+  lineSpacing?: number;
+  jitter?: boolean;
 }
+
 
 export interface ExportOptions {
   format: ExportFormat;

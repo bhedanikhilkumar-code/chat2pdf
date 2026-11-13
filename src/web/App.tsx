@@ -22,7 +22,7 @@ export default function App() {
 
       if (isFromExt) {
         if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-          chrome.storage.local.get(['chat2pdf_extracted_data'], (result) => {
+          chrome.storage.local.get(['chat2pdf_extracted_data'], (result: Record<string, any>) => {
             const data = result?.chat2pdf_extracted_data;
             if (data && Array.isArray(data.messages) && data.messages.length > 0) {
               const conv = parseExtracted(
@@ -35,6 +35,7 @@ export default function App() {
             }
           });
         }
+
 
         if (typeof window !== 'undefined' && window.localStorage) {
           const stored = localStorage.getItem('chat2pdf_extracted_data');
