@@ -17,14 +17,18 @@ export function useExport() {
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [progressText, setProgressText] = useState<string | null>(null);
   const [activeFormat, setActiveFormat] = useState<string | null>(null);
+  const [successInfo, setSuccessInfo] = useState<{ filename: string } | null>(null);
 
   const runExport = useCallback(
     async (conversation: Conversation, options: ExportOptions) => {
       setLoading(true);
       setError(null);
       setErrorDetails(null);
+      setSuccessInfo(null);
       setProgressText(null);
       setActiveFormat(options.format);
+
+      const targetFileName = `${options.fileName || conversation.title || 'chat'}.${options.format === 'handwriting' ? 'pdf' : options.format}`;
 
       try {
         switch (options.format) {
@@ -58,6 +62,7 @@ export function useExport() {
           default:
             throw new Error(`Unsupported format: ${options.format}`);
         }
+        setSuccessInfo({ filename: targetFileName });
       } catch (err: any) {
         const message = err?.message || 'Export failed. Please try again.';
         const stack = err?.stack || String(err);
@@ -78,5 +83,9 @@ export function useExport() {
     setErrorDetails(null);
   }, []);
 
-  return { runExport, loading, error, errorDetails, progressText, activeFormat, clearError };
+  const clearSuccess = useCallback(() => {
+    setSuccessInfo(null);
+  }, []);
+
+  return { runExport, loading, error, errorDetails, progressText, activeFormat, successInfo, clearError, clearSuccess };
 }

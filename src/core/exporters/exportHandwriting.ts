@@ -287,18 +287,33 @@ export async function exportHandwriting(
     const blob = doc.output('blob');
     await downloadBlob(blob, `${fileName}.pdf`);
   } else {
-    const canvas = pageCanvases[0];
-    await new Promise<void>((resolve) => {
-      canvas.toBlob(
-        async (blob) => {
-          if (blob) {
-            await downloadBlob(blob, `${fileName}.jpg`);
-          }
-          resolve();
-        },
-        'image/jpeg',
-        0.92
-      );
-    });
+    // If multiple pages and user chose JPG, package into zip, else single image
+    if (pageCanvases.length > 1) {
+      const files: Array<{ name: string; blob: Blob }> = [];
+      for (let i = 0; i < pageCanvases.length; i++) {
+        const b = await new Promise<Blob | null>((res) =>
+          pageCanvases[i].toBlob(res, 'image/jpeg', 0.92)
+        );
+        if (b) {
+          files.push({ name: `${fileName}_page_${i + 1}.jpg`, blob: b });
+        }
+      }
+      const { downloadFilesAsZip } = await import('./downloadHelper');
+      await downloadFilesAsZip(files, `${fileName}_pages.zip`);
+    } else {
+      const canvas = pageCanvases[0];
+      await new Promise<void>((resolve) => {
+        canvas.toBlob(
+          async (blob) => {
+            if (blob) {
+              await downloadBlob(blob, `${fileName}.jpg`);
+            }
+            resolve();
+          },
+          'image/jpeg',
+          0.92
+        );
+      });
+    }
   }
 }

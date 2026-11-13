@@ -26,7 +26,9 @@ interface ExportStepProps {
   progressText?: string | null;
   error?: string | null;
   errorDetails?: string | null;
+  successInfo?: { filename: string } | null;
   onClearError?: () => void;
+  onClearSuccess?: () => void;
 }
 
 interface FormatCard {
@@ -46,7 +48,9 @@ export const ExportStep: React.FC<ExportStepProps> = ({
   progressText,
   error,
   errorDetails,
+  successInfo,
   onClearError,
+  onClearSuccess,
 }) => {
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('pdf');
   const [imageMode, setImageMode] = useState<ImageMode>('long');
@@ -176,7 +180,32 @@ export const ExportStep: React.FC<ExportStepProps> = ({
               {progressText || 'Preparing your download...'}
             </span>
           </div>
-          <span className="text-xs text-blue-600 dark:text-blue-400 font-mono">100% Client-Side</span>
+        </div>
+      )}
+
+      {/* Success Toast */}
+      {successInfo && (
+        <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 shadow-xs flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <div>
+              <p className="text-xs sm:text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+                Download ready: {successInfo.filename}
+              </p>
+              <p className="text-[11px] text-emerald-700/80 dark:text-emerald-400/80">
+                Saved to your downloads folder.
+              </p>
+            </div>
+          </div>
+          {onClearSuccess && (
+            <button
+              type="button"
+              onClick={onClearSuccess}
+              className="text-xs text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-200 px-2 py-1 cursor-pointer"
+            >
+              Dismiss
+            </button>
+          )}
         </div>
       )}
 

@@ -13,7 +13,7 @@ export default function App() {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [loadError, setLoadError] = useState<string | null>(null);
-  const { runExport, loading, progressText, error, errorDetails, clearError } = useExport();
+  const { runExport, loading, progressText, error, errorDetails, successInfo, clearError, clearSuccess } = useExport();
 
 
   useEffect(() => {
@@ -109,7 +109,9 @@ export default function App() {
               progressText={progressText}
               error={error}
               errorDetails={errorDetails}
+              successInfo={successInfo}
               onClearError={clearError}
+              onClearSuccess={clearSuccess}
             />
           )}
         </div>
