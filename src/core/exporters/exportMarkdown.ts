@@ -1,0 +1,58 @@
+import { saveAs } from 'file-saver';
+import type { Conversation, ExportOptions } from '../parser/types';
+import { filterMessages } from '../parser/filters';
+
+const ROLE_EMOJI: Record<string, string> = {
+  user: '👤',
+  assistant: '🤖',
+  system: '⚙️',
+};
+
+export async function exportMarkdown(
+  conversation: Conversation,
+  options: ExportOptions
+): Promise<void> {
+  const messages = filterMessages(conversation.messages, options.filterMode);
+
+  if (messages.length === 0) {
+    const blob = new Blob(['*No messages to export.*\n'], {
+      type: 'text/markdown;charset=utf-8',
+    });
+    saveAs(blob, `${options.fileName || conversation.title || 'chat'}.md`);
+    return;
+  }
+
+  const parts: string[] = [];
+
+  if (options.includeTitle !== false && conversation.title) {
+    parts.push(`# ${conversation.title}`);
+    parts.push('');
+    parts.push(
+      `> **Source:** ${conversation.source} | **Exported:** ${conversation.exportedAt}`
+    );
+    parts.push('');
+  }
+
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
+    const emoji = ROLE_EMOJI[msg.role] || '💬';
+    const roleLabel = msg.role.charAt(0).toUpperCase() + msg.role.slice(1);
+
+    parts.push(`## ${emoji} ${roleLabel}`);
+    parts.push('');
+    parts.push(msg.content);
+    parts.push('');
+
+    // Add horizontal rule between messages, not after last
+    if (i < messages.length - 1) {
+      parts.push('---');
+      parts.push('');
+    }
+  }
+
+  const markdown = parts.join('\n');
+  const blob = new Blob([markdown], {
+    type: 'text/markdown;charset=utf-8',
+  });
+  saveAs(blob, `${options.fileName || conversation.title || 'chat'}.md`);
+}
