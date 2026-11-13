@@ -1,4 +1,6 @@
-﻿import { getSelectorsForHost } from './selectors/index';
+﻿import TurndownService from 'turndown';
+import { gfm } from 'turndown-plugin-gfm';
+import { getSelectorsForHost } from './selectors/index';
 import { cleanText } from '../../core/parser/cleaners';
 
 export interface ExtractedMessage {
@@ -12,8 +14,44 @@ export interface ExtractedConversation {
   messages: ExtractedMessage[];
 }
 
-function cleanNode(node: HTMLElement, junkSelectors: string[]): string {
+// Configure Turndown with GFM (tables, task lists, strikethrough, code blocks)
+function createTurndown(): TurndownService {
+  const td = new TurndownService({
+    headingStyle: 'atx',
+    hr: '---',
+    bulletListMarker: '-',
+    codeBlockStyle: 'fenced',
+    emDelimiter: '*',
+  });
+
+  td.use(gfm);
+
+  // Preserve pre/code blocks cleanly with language if available
+  td.addRule('fencedCodeBlock', {
+    filter: (node, _options) => {
+      return (
+        node.nodeName === 'PRE' ||
+        (node.nodeName === 'DIV' && (node as HTMLElement).classList.contains('code-block'))
+      );
+    },
+    replacement: (_content, node, _options) => {
+      const el = node as HTMLElement;
+      const codeEl = el.querySelector('code') || el;
+      const langClass = Array.from(codeEl.classList).find((c) => c.startsWith('language-'));
+      const lang = langClass ? langClass.replace('language-', '') : '';
+      const text = codeEl.textContent || '';
+      return `\n\`\`\`${lang}\n${text.replace(/\n+$/, '')}\n\`\`\`\n\n`;
+    },
+  });
+
+  return td;
+}
+
+const turndown = createTurndown();
+
+function cleanNodeToMarkdown(node: HTMLElement, junkSelectors: string[]): string {
   const cloned = node.cloneNode(true) as HTMLElement;
+
   if (junkSelectors && junkSelectors.length > 0) {
     junkSelectors.forEach((junkSel) => {
       try {
@@ -21,8 +59,18 @@ function cleanNode(node: HTMLElement, junkSelectors: string[]): string {
       } catch (e) {}
     });
   }
-  const text = cloned.innerText || cloned.textContent || '';
-  return cleanText(text);
+
+  // Remove common copy/action bars inside code snippets
+  cloned.querySelectorAll('button, .copy-code-button, [aria-label*="Copy"]').forEach((el) => el.remove());
+
+  try {
+    const md = turndown.turndown(cloned.innerHTML);
+    return cleanText(md);
+  } catch (err) {
+    // Fallback if turndown fails on complex node
+    const text = cloned.innerText || cloned.textContent || '';
+    return cleanText(text);
+  }
 }
 
 export function extractConversation(): ExtractedConversation {
@@ -59,7 +107,7 @@ export function extractConversation(): ExtractedConversation {
         const role: 'user' | 'assistant' = isUser ? 'user' : 'assistant';
 
         const contentEl = (turn.querySelector(selectors.messageContent) as HTMLElement) || (turn as HTMLElement);
-        const cleaned = cleanNode(contentEl, junk);
+        const cleaned = cleanNodeToMarkdown(contentEl, junk);
 
         if (cleaned) {
           messages.push({ role, content: cleaned });
@@ -82,7 +130,7 @@ export function extractConversation(): ExtractedConversation {
 
       combined.forEach(({ node, role }) => {
         const contentEl = (node.querySelector(selectors.messageContent) as HTMLElement) || node;
-        const cleaned = cleanNode(contentEl, junk);
+        const cleaned = cleanNodeToMarkdown(contentEl, junk);
         if (cleaned) {
           messages.push({ role, content: cleaned });
         }
@@ -102,7 +150,7 @@ export function extractConversation(): ExtractedConversation {
       const role: 'user' | 'assistant' = isUser ? 'user' : 'assistant';
 
       const contentEl = (turn.querySelector('.markdown, .prose, [class*=content]') as HTMLElement) || turn;
-      const cleaned = cleanNode(contentEl, defaultJunk);
+      const cleaned = cleanNodeToMarkdown(contentEl, defaultJunk);
 
       if (cleaned && cleaned.length > 3) {
         messages.push({ role, content: cleaned });

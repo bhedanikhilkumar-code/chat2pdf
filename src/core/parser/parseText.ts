@@ -26,7 +26,6 @@ function detectRole(line: string): 'user' | 'assistant' | null {
 }
 
 function stripRolePrefix(line: string): string {
-  // Remove role prefixes like "You:", "ChatGPT:", "**User**:", etc.
   return line
     .replace(
       /^(\*\*)?(You|User|Human|Me|ChatGPT|GPT|AI|Assistant|Bot|Claude|Gemini|Perplexity|Groq|Model|Q|A|Question|Answer)(\*\*)?\s*[:\-]\s*/i,
@@ -59,21 +58,32 @@ export function parseText(rawText: string): Conversation {
   let currentContent: string[] = [];
   let messageIndex = 0;
   let hasExplicitRoles = false;
+  let inCodeBlock = false;
 
-  // First pass: check if there are explicit role markers
+  // First pass: check if there are explicit role markers outside code blocks
   for (const line of lines) {
-    if (detectRole(line) !== null) {
+    if (/^[ \t]*```/.test(line)) {
+      inCodeBlock = !inCodeBlock;
+      continue;
+    }
+    if (!inCodeBlock && detectRole(line) !== null) {
       hasExplicitRoles = true;
       break;
     }
   }
 
+  inCodeBlock = false;
+
   if (hasExplicitRoles) {
-    // Parse with role markers
     for (const line of lines) {
-      const role = detectRole(line);
+      if (/^[ \t]*```/.test(line)) {
+        inCodeBlock = !inCodeBlock;
+        currentContent.push(line);
+        continue;
+      }
+
+      const role = !inCodeBlock ? detectRole(line) : null;
       if (role !== null) {
-        // Save previous message
         if (currentContent.length > 0) {
           const content = currentContent.join('\n').trim();
           if (content) {
@@ -92,18 +102,57 @@ export function parseText(rawText: string): Conversation {
       }
     }
   } else {
-    // No explicit roles: try to split by double newlines, alternate user/assistant
-    const blocks = cleaned.split(/\n\n+/);
-    for (const block of blocks) {
-      const trimmed = block.trim();
-      if (!trimmed) continue;
+    // Split into turns while respecting code blocks and blank lines
+    const turns: string[] = [];
+    let currentTurnLines: string[] = [];
+    let emptyLineCount = 0;
+    let insideCode = false;
+
+    for (const line of lines) {
+      if (/^[ \t]*```/.test(line)) {
+        insideCode = !insideCode;
+        currentTurnLines.push(line);
+        emptyLineCount = 0;
+        continue;
+      }
+
+      if (insideCode) {
+        currentTurnLines.push(line);
+        continue;
+      }
+
+      if (line.trim() === '') {
+        emptyLineCount++;
+        // If 2 or more consecutive blank lines, consider it a turn boundary
+        if (emptyLineCount >= 2 && currentTurnLines.length > 0) {
+          const block = currentTurnLines.join('\n').trim();
+          if (block) {
+            turns.push(block);
+          }
+          currentTurnLines = [];
+        } else {
+          currentTurnLines.push(line);
+        }
+      } else {
+        emptyLineCount = 0;
+        currentTurnLines.push(line);
+      }
+    }
+
+    if (currentTurnLines.length > 0) {
+      const block = currentTurnLines.join('\n').trim();
+      if (block) turns.push(block);
+    }
+
+    for (const block of turns) {
       messages.push({
         role: currentRole,
-        content: trimmed,
+        content: block,
         index: messageIndex++,
       });
       currentRole = currentRole === 'user' ? 'assistant' : 'user';
     }
+
     return {
       title: extractTitle(cleaned),
       source: detectSource(cleaned),
@@ -133,7 +182,6 @@ export function parseText(rawText: string): Conversation {
 }
 
 function extractTitle(text: string): string {
-  // Try to extract a title from the first user message
   const firstLine = text.split('\n')[0]?.trim() || '';
   if (firstLine.length > 0 && firstLine.length <= 80) {
     return firstLine.replace(/^(You|User|Human|Me|Q|Question)\s*[:\-]\s*/i, '');
@@ -141,7 +189,6 @@ function extractTitle(text: string): string {
   return 'Untitled Chat';
 }
 
-// Parse from extension-extracted data (pre-structured)
 export function parseExtracted(
   data: { role: 'user' | 'assistant'; content: string }[],
   source: string,
