@@ -5,8 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chat2PDF</title>
     <link rel="stylesheet" href="./popup.css" />
+    <script>
+      (function() {
+        try {
+          var isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.setAttribute('data-theme', 'dark');
+            document.documentElement.style.colorScheme = 'dark';
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body class="bg-gray-50 text-gray-900 m-0 p-0 font-sans antialiased">
+  <body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 m-0 p-0 font-sans antialiased">
     <div id="root"></div>
     <script type="module" src="./popup.tsx"></script>
   </body>
