@@ -1,11 +1,11 @@
-import type { SiteSelectors } from '@core/parser/types';
+﻿import type { SiteSelectors } from '@core/parser/types';
 
 export const claudeSelectors: SiteSelectors = {
-  messageContainer: '[class*="conversation"]',
-  userMessage: '[class*="human"]',
-  assistantMessage: '[class*="assistant"]',
-  messageContent: '[class*="message-content"], [class*="markdown"]',
-  chatTitle: '[class*="conversation-title"], h1',
+  messageContainer: '[class*=conversation], [data-testid=chat-message-row], div[data-testid*=user-message], div[data-testid*=assistant-message], div[class*=ChatMessage_container], div[class*=font-claude-message]',
+  userMessage: '[class*=human], [data-testid*=user-message], [class*=font-user-message], div[class*=user]',
+  assistantMessage: '[class*=assistant], [data-testid*=assistant-message], [class*=font-claude-message], div[class*=claude]',
+  messageContent: '[class*=message-content], [class*=markdown], .prose, div[class*=progressive-markdown]',
+  chatTitle: '[class*=conversation-title], [data-testid=conversation-title], h1',
   junkSelectors: [
     'button',
     '.copy-button',
@@ -13,8 +13,9 @@ export const claudeSelectors: SiteSelectors = {
     '.message-actions',
     'svg',
     '.sr-only',
-    '[aria-hidden="true"]',
-    '[class*="action"]',
-    '[class*="toolbar"]',
+    '[aria-hidden=true]',
+    '[class*=action]',
+    '[class*=toolbar]',
+    '[class*=FeedbackButtons]',
   ],
 };

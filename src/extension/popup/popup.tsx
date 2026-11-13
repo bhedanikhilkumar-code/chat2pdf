@@ -1,10 +1,20 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
 const Popup: React.FC = () => {
   const [status, setStatus] = useState<string>('Ready to extract');
   const [loading, setLoading] = useState<boolean>(false);
   const [currentHost, setCurrentHost] = useState<string>('');
+  const [isSupported, setIsSupported] = useState<boolean>(false);
+
+  const supportedHosts = [
+    'chatgpt.com',
+    'chat.openai.com',
+    'gemini.google.com',
+    'claude.ai',
+    'perplexity.ai',
+    'groq.com',
+  ];
 
   useEffect(() => {
     if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
@@ -12,7 +22,9 @@ const Popup: React.FC = () => {
         if (tabs[0]?.url) {
           try {
             const url = new URL(tabs[0].url);
-            setCurrentHost(url.hostname.replace(/^www\./, ''));
+            const host = url.hostname.replace(/^www\./, '');
+            setCurrentHost(host);
+            setIsSupported(supportedHosts.some((h) => host.includes(h)));
           } catch (e) {}
         }
       });
@@ -37,10 +49,9 @@ const Popup: React.FC = () => {
         return;
       }
 
-      // Send message to content script
       chrome.tabs.sendMessage(tab.id, { action: 'EXTRACT_CHAT' }, (response) => {
         if (chrome.runtime.lastError) {
-          setStatus('Cannot extract: Please make sure you are on a supported AI chat page.');
+          setStatus('Cannot connect to page. If this tab was already open, please refresh the page and try again.');
           setLoading(false);
           return;
         }
@@ -48,14 +59,13 @@ const Popup: React.FC = () => {
         if (response?.success && response.data) {
           const { messages, title, source } = response.data;
           if (!messages || messages.length === 0) {
-            setStatus('No conversation messages detected on this page.');
+            setStatus('No conversation found. Make sure you are viewing an active chat thread with at least one question and answer.');
             setLoading(false);
             return;
           }
 
           setStatus(`Found ${messages.length} messages! Opening exporter...`);
 
-          // Store in chrome.storage.local
           chrome.storage.local.set(
             {
               chat2pdf_extracted_data: {
@@ -65,14 +75,13 @@ const Popup: React.FC = () => {
               },
             },
             () => {
-              // Open web app page
               const webAppUrl = chrome.runtime.getURL('web/index.html?source=extension');
               chrome.tabs.create({ url: webAppUrl });
               setLoading(false);
             }
           );
         } else {
-          setStatus(response?.error || 'Failed to extract messages.');
+          setStatus(response?.error || 'Failed to extract messages. Please check if the chat page is fully loaded.');
           setLoading(false);
         }
       });
@@ -100,14 +109,14 @@ const Popup: React.FC = () => {
           style={{
             marginBottom: '12px',
             padding: '6px 10px',
-            backgroundColor: '#eff6ff',
+            backgroundColor: isSupported ? '#eff6ff' : '#fef2f2',
             borderRadius: '6px',
             fontSize: '11px',
-            color: '#1d4ed8',
+            color: isSupported ? '#1d4ed8' : '#b91c1c',
             display: 'inline-block',
           }}
         >
-          Active Site: <strong>{currentHost}</strong>
+          Active Site: <strong>{currentHost}</strong> {isSupported ? '✓ (Supported)' : '⚠️ (Untested)'}
         </div>
       )}
 
@@ -139,9 +148,16 @@ const Popup: React.FC = () => {
         style={{
           marginTop: '12px',
           fontSize: '11px',
-          color: status.includes('Error') || status.includes('Cannot') || status.includes('No conversation') ? '#dc2626' : '#4b5563',
+          color:
+            status.includes('Error') ||
+            status.includes('Cannot') ||
+            status.includes('No conversation') ||
+            status.includes('Failed')
+              ? '#dc2626'
+              : '#4b5563',
           textAlign: 'center',
           minHeight: '16px',
+          lineHeight: 1.3,
         }}
       >
         {status}

@@ -1,4 +1,4 @@
-import { getSelectorsForHost } from './selectors/index';
+﻿import { getSelectorsForHost } from './selectors/index';
 import { cleanText } from '../../core/parser/cleaners';
 
 export interface ExtractedMessage {
@@ -12,86 +12,99 @@ export interface ExtractedConversation {
   messages: ExtractedMessage[];
 }
 
+function cleanNode(node: HTMLElement, junkSelectors: string[]): string {
+  const cloned = node.cloneNode(true) as HTMLElement;
+  if (junkSelectors && junkSelectors.length > 0) {
+    junkSelectors.forEach((junkSel) => {
+      try {
+        cloned.querySelectorAll(junkSel).forEach((el) => el.remove());
+      } catch (e) {}
+    });
+  }
+  const text = cloned.innerText || cloned.textContent || '';
+  return cleanText(text);
+}
+
 export function extractConversation(): ExtractedConversation {
   const hostname = window.location.hostname.replace(/^www\./, '');
   const selectors = getSelectorsForHost(hostname) || getSelectorsForHost(window.location.hostname);
 
-  const title = document.title || 'Exported Chat';
-  const messages: ExtractedMessage[] = [];
-
-  if (!selectors) {
-    // Generic fallback heuristics
-    const turns = document.querySelectorAll('[data-message-author-role], article, [class*="message"]');
-    turns.forEach((turn) => {
-      const roleAttr = turn.getAttribute('data-message-author-role') || '';
-      const text = turn.textContent || '';
-      const cleaned = cleanText(text);
-      if (cleaned) {
-        messages.push({
-          role: roleAttr.includes('user') ? 'user' : 'assistant',
-          content: cleaned,
-        });
-      }
-    });
-
-    return {
-      title,
-      source: hostname,
-      messages,
-    };
+  let title = document.title || 'Exported Chat';
+  if (selectors?.chatTitle) {
+    const titleEl = document.querySelector(selectors.chatTitle);
+    if (titleEl && titleEl.textContent) {
+      title = titleEl.textContent.trim();
+    }
   }
 
-  // Use configured selectors
-  const turns = document.querySelectorAll(selectors.messageContainer);
+  const messages: ExtractedMessage[] = [];
+  const defaultJunk = [
+    'button',
+    '.copy-button',
+    '.feedback-buttons',
+    '.message-actions',
+    'svg',
+    '.sr-only',
+    '[aria-hidden=true]',
+  ];
+  const junk = selectors?.junkSelectors || defaultJunk;
 
-  if (turns.length > 0) {
-    turns.forEach((turn) => {
-      // Check if user message
-      const isUser = turn.matches(selectors.userMessage) || turn.querySelector(selectors.userMessage) !== null;
+  if (selectors) {
+    // 1. Try primary messageContainer selector
+    const turns = Array.from(document.querySelectorAll(selectors.messageContainer));
+
+    if (turns.length > 0) {
+      turns.forEach((turn) => {
+        const isUser = turn.matches(selectors.userMessage) || turn.querySelector(selectors.userMessage) !== null;
+        const role: 'user' | 'assistant' = isUser ? 'user' : 'assistant';
+
+        const contentEl = (turn.querySelector(selectors.messageContent) as HTMLElement) || (turn as HTMLElement);
+        const cleaned = cleanNode(contentEl, junk);
+
+        if (cleaned) {
+          messages.push({ role, content: cleaned });
+        }
+      });
+    }
+
+    // 2. If 0 messages found, try querying user and assistant elements directly
+    if (messages.length === 0) {
+      const userNodes = Array.from(document.querySelectorAll(selectors.userMessage)) as HTMLElement[];
+      const assistantNodes = Array.from(document.querySelectorAll(selectors.assistantMessage)) as HTMLElement[];
+
+      const combined = [
+        ...userNodes.map((node) => ({ node, role: 'user' as const })),
+        ...assistantNodes.map((node) => ({ node, role: 'assistant' as const })),
+      ].sort((a, b) => {
+        const pos = a.node.compareDocumentPosition(b.node);
+        return pos & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
+      });
+
+      combined.forEach(({ node, role }) => {
+        const contentEl = (node.querySelector(selectors.messageContent) as HTMLElement) || node;
+        const cleaned = cleanNode(contentEl, junk);
+        if (cleaned) {
+          messages.push({ role, content: cleaned });
+        }
+      });
+    }
+  }
+
+  // 3. Ultra-resilient generic fallback heuristics (for new UI changes, articles, or custom bots)
+  if (messages.length === 0) {
+    const candidateTurns = Array.from(
+      document.querySelectorAll('[data-message-author-role], article, [class*=message], [class*=chat-turn]')
+    ) as HTMLElement[];
+
+    candidateTurns.forEach((turn) => {
+      const roleAttr = (turn.getAttribute('data-message-author-role') || turn.className || '').toLowerCase();
+      const isUser = roleAttr.includes('user') || roleAttr.includes('human');
       const role: 'user' | 'assistant' = isUser ? 'user' : 'assistant';
 
-      // Find content element
-      const contentEl = turn.querySelector(selectors.messageContent) || turn;
-      
-      // Clone element to safely remove junk selectors without modifying live page
-      const cloned = contentEl.cloneNode(true) as HTMLElement;
-      if (selectors.junkSelectors) {
-        selectors.junkSelectors.forEach((junkSel) => {
-          cloned.querySelectorAll(junkSel).forEach((el) => el.remove());
-        });
-      }
+      const contentEl = (turn.querySelector('.markdown, .prose, [class*=content]') as HTMLElement) || turn;
+      const cleaned = cleanNode(contentEl, defaultJunk);
 
-      const text = cloned.innerText || cloned.textContent || '';
-      const cleaned = cleanText(text);
-
-      if (cleaned) {
-        messages.push({ role, content: cleaned });
-      }
-    });
-  } else {
-    // If container matched 0, attempt querySelectorAll directly on user and assistant elements
-    const userNodes = Array.from(document.querySelectorAll(selectors.userMessage));
-    const assistantNodes = Array.from(document.querySelectorAll(selectors.assistantMessage));
-
-    // Combine and sort by DOM position
-    const combined = [
-      ...userNodes.map((node) => ({ node, role: 'user' as const })),
-      ...assistantNodes.map((node) => ({ node, role: 'assistant' as const })),
-    ].sort((a, b) => {
-      const pos = a.node.compareDocumentPosition(b.node);
-      return pos & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
-    });
-
-    combined.forEach(({ node, role }) => {
-      const cloned = node.cloneNode(true) as HTMLElement;
-      if (selectors.junkSelectors) {
-        selectors.junkSelectors.forEach((junkSel) => {
-          cloned.querySelectorAll(junkSel).forEach((el) => el.remove());
-        });
-      }
-      const text = cloned.innerText || cloned.textContent || '';
-      const cleaned = cleanText(text);
-      if (cleaned) {
+      if (cleaned && cleaned.length > 3) {
         messages.push({ role, content: cleaned });
       }
     });
