@@ -28,7 +28,11 @@ export function useExport() {
       setProgressText(null);
       setActiveFormat(options.format);
 
-      const targetFileName = `${options.fileName || conversation.title || 'chat'}.${options.format === 'handwriting' ? 'pdf' : options.format}`;
+      const targetFileName = `${options.fileName || conversation.title || 'chat'}.${
+        options.format === 'handwriting'
+          ? (options.handwriting?.exportAs || 'pdf')
+          : options.format
+      }`;
 
       try {
         switch (options.format) {

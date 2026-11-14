@@ -19,7 +19,7 @@ export default function App() {
   useEffect(() => {
     try {
       const searchParams = new URLSearchParams(window.location.search);
-      const isFromExt = searchParams.get('source') === 'extension';
+      const isFromExt = searchParams.get('source') === 'extension' || window.location.protocol === 'chrome-extension:';
 
       if (isFromExt) {
         if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {

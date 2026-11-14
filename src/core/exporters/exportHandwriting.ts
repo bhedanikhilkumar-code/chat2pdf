@@ -287,33 +287,26 @@ export async function exportHandwriting(
     const blob = doc.output('blob');
     await downloadBlob(blob, `${fileName}.pdf`);
   } else {
-    // If multiple pages and user chose JPG, package into zip, else single image
-    if (pageCanvases.length > 1) {
-      const files: Array<{ name: string; blob: Blob }> = [];
-      for (let i = 0; i < pageCanvases.length; i++) {
-        const b = await new Promise<Blob | null>((res) =>
-          pageCanvases[i].toBlob(res, 'image/jpeg', 0.92)
-        );
-        if (b) {
-          files.push({ name: `${fileName}_page_${i + 1}.jpg`, blob: b });
-        }
-      }
-      const { downloadFilesAsZip } = await import('./downloadHelper');
-      await downloadFilesAsZip(files, `${fileName}_pages.zip`);
+    // Generate valid JPEG image (single page or vertically stitched multi-page)
+    let finalCanvas: HTMLCanvasElement;
+    if (pageCanvases.length === 1) {
+      finalCanvas = pageCanvases[0];
     } else {
-      const canvas = pageCanvases[0];
-      await new Promise<void>((resolve) => {
-        canvas.toBlob(
-          async (blob) => {
-            if (blob) {
-              await downloadBlob(blob, `${fileName}.jpg`);
-            }
-            resolve();
-          },
-          'image/jpeg',
-          0.92
-        );
-      });
+      finalCanvas = document.createElement('canvas');
+      finalCanvas.width = PAGE_W;
+      finalCanvas.height = PAGE_H * pageCanvases.length;
+      const fCtx = finalCanvas.getContext('2d')!;
+      for (let i = 0; i < pageCanvases.length; i++) {
+        fCtx.drawImage(pageCanvases[i], 0, i * PAGE_H);
+      }
+    }
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      finalCanvas.toBlob(resolve, 'image/jpeg', 0.92);
+    });
+
+    if (blob) {
+      await downloadBlob(blob, `${fileName}.jpg`);
     }
   }
 }
