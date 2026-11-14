@@ -1,6 +1,7 @@
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { WATERMARK_TEXT } from '../branding';
+import { renderMathInMarkdown } from './mathRenderer';
 import type { Conversation, ExportOptions } from '../parser/types';
 import { filterMessages } from '../parser/filters';
 import { resolveTheme, type ResolvedTheme } from '../theme/resolveTheme';
@@ -180,6 +181,17 @@ export function buildPageStyles(resolved: ResolvedTheme): string {
     color: ${resolved.mutedText};
     letter-spacing: 0.2px;
   }
+
+  .katex-display {
+    display: block;
+    margin: 0.8em 0;
+    text-align: center;
+  }
+
+  .katex {
+    font-size: 1.1em;
+    text-rendering: auto;
+  }
 `;
 }
 
@@ -197,7 +209,8 @@ export const PAGE_STYLES = buildPageStyles({
 });
 
 export function renderMarkdownToHtml(markdown: string): string {
-  const rawHtml = marked.parse(markdown, { gfm: true, breaks: true }) as string;
+  const withMath = renderMathInMarkdown(markdown);
+  const rawHtml = marked.parse(withMath, { gfm: true, breaks: true }) as string;
   return DOMPurify.sanitize(rawHtml);
 }
 

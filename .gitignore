@@ -14,6 +14,8 @@ Thumbs.db
 # Privacy & verification outputs
 test-results/
 docs/verification/
+docs/reference/
+docs/screenshots/
 .vitest/
 *.har
 tests/output_downloads/

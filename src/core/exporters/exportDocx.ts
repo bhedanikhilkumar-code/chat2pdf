@@ -18,6 +18,7 @@ import { filterMessages } from '../parser/filters';
 import { WATERMARK_TEXT } from '../branding';
 import { downloadBlob } from './downloadHelper';
 import { resolveTheme } from '../theme/resolveTheme';
+import { cleanMathToReadableText } from '../renderer/mathRenderer';
 
 const ROLE_CONFIG: Record<
   string,
@@ -52,7 +53,7 @@ function parseMarkdownTable(tableLines: string[], isDark: boolean, textColor: st
             new Paragraph({
               children: [
                 new TextRun({
-                  text: cellText,
+                  text: cleanMathToReadableText(cellText),
                   bold: isHeader,
                   font: 'Calibri',
                   size: 20,
@@ -84,7 +85,8 @@ function buildContentElements(
   isDark: boolean
 ): (Paragraph | Table)[] {
   const elements: (Paragraph | Table)[] = [];
-  const lines = content.split('\n');
+  const cleaned = cleanMathToReadableText(content);
+  const lines = cleaned.split('\n');
   let inCodeBlock = false;
   let codeLines: string[] = [];
   let tableLines: string[] = [];

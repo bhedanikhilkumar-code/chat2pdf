@@ -2,6 +2,7 @@ import type { Conversation, ExportOptions } from '../parser/types';
 import { filterMessages } from '../parser/filters';
 import { WATERMARK_TEXT } from '../branding';
 import { downloadBlob } from './downloadHelper';
+import { cleanMathToReadableText } from '../renderer/mathRenderer';
 
 const ROLE_LABELS: Record<string, string> = {
   user: 'User',
@@ -36,7 +37,7 @@ export async function exportTxt(
   for (const msg of messages) {
     const label = ROLE_LABELS[msg.role] || msg.role;
     parts.push(`--- ${label} ---`);
-    parts.push(msg.content);
+    parts.push(cleanMathToReadableText(msg.content));
     if (msg.attachments && msg.attachments.length > 0) {
       parts.push(`Attachments: ${msg.attachments.map((a) => a.name + (a.size ? ` (${a.size})` : '')).join(', ')}`);
     }

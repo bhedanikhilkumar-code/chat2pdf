@@ -2,6 +2,7 @@ import React from 'react';
 import type { ChatMessage } from '../../core/parser/types';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
+import { renderMathInMarkdown } from '../../core/renderer/mathRenderer';
 
 interface ChatPreviewProps {
   messages: ChatMessage[];
@@ -11,7 +12,8 @@ interface ChatPreviewProps {
 
 export const ChatPreview: React.FC<ChatPreviewProps> = ({ messages, title, source }) => {
   const renderMarkdown = (content: string) => {
-    const rawHtml = marked.parse(content, { breaks: true, gfm: true }) as string;
+    const withMath = renderMathInMarkdown(content);
+    const rawHtml = marked.parse(withMath, { breaks: true, gfm: true }) as string;
     return { __html: DOMPurify.sanitize(rawHtml) };
   };
 

@@ -2,7 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
+import katex from 'katex';
 import { WATERMARK_TEXT } from '../src/core/branding';
+
+const katexCssPath = path.resolve('node_modules/katex/dist/katex.min.css');
+const katexCss = fs.existsSync(katexCssPath) ? fs.readFileSync(katexCssPath, 'utf-8') : '';
 
 const auditDir = path.resolve('test-results/export_audit');
 if (!fs.existsSync(auditDir)) {
@@ -122,6 +126,7 @@ describe('Visual Export Quality Audit (Task 1)', () => {
         <head>
           <meta charset="UTF-8" />
           <style>
+            ${katexCss}
             body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #e2e8f0; }
             .chat2pdf-a4-page {
               width: 794px;
@@ -250,7 +255,7 @@ describe('Visual Export Quality Audit (Task 1)', () => {
                     </li>
                   </ul>
                   <p style="word-break: break-all; color: #3b82f6;">https://cloud.google.com/architecture/patterns-for-distributed-systems-resilience-and-disaster-recovery-in-multi-region-deployments-with-zero-data-loss-and-minimal-failover-rpo-rto</p>
-                  <p>Formula: ∑(x_i - μ) / σ ≈ 0</p>
+                  <div>${katex.renderToString('\\sum_{i=1}^{n} \\frac{x_i - \\mu}{\\sigma} \\approx 0', { displayMode: true, throwOnError: false })}</div>
                 </div>
               </div>
             </div>
@@ -336,8 +341,7 @@ describe('Visual Export Quality Audit (Task 1)', () => {
           <div class="msg assistant">🤖 Assistant: नमस्ते! यहाँ वितरित प्रणाली का संपूर्ण विवरण है। 🚀
             <pre><code>def consensus(): return True</code></pre>
           </div>
-          <div class="footer">
-            <span>Long Screenshot Export</span>
+          <div class="footer" style="justify-content: flex-end;">
             <span>${WATERMARK_TEXT}</span>
           </div>
         </body>

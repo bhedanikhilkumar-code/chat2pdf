@@ -8,6 +8,7 @@ import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/600.css';
 import '@fontsource/noto-sans-devanagari/400.css';
 import '@fontsource/noto-sans-devanagari/600.css';
+import 'katex/dist/katex.min.css';
 import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './index.css';

@@ -4,6 +4,7 @@ import { filterMessages } from '../parser/filters';
 import { WATERMARK_TEXT } from '../branding';
 import { downloadBlob } from './downloadHelper';
 import { resolveTheme } from '../theme/resolveTheme';
+import { cleanMathToReadableText } from '../renderer/mathRenderer';
 
 function splitTextIntoChunks(text: string, maxLen = 700): string[] {
   if (text.length <= maxLen) return [text];
@@ -140,7 +141,9 @@ export async function exportPptx(
         : null;
 
     if (userMsg.role === 'user' && assistantMsg) {
-      const answerChunks = splitTextIntoChunks(assistantMsg.content, 900);
+      const cleanUser = cleanMathToReadableText(userMsg.content);
+      const cleanAssistant = cleanMathToReadableText(assistantMsg.content);
+      const answerChunks = splitTextIntoChunks(cleanAssistant, 900);
 
       answerChunks.forEach((chunk, chunkIdx) => {
         const slide = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
@@ -176,8 +179,8 @@ export async function exportPptx(
           rectRadius: 0.08,
         });
         const userText = userMsg.attachments && userMsg.attachments.length > 0
-          ? `${userMsg.content}\n[📎 ${userMsg.attachments.map((a) => a.name).join(', ')}]`
-          : userMsg.content;
+          ? `${cleanUser}\n[📎 ${userMsg.attachments.map((a) => a.name).join(', ')}]`
+          : cleanUser;
 
         slide.addText(userText.substring(0, 450), {
           x: 1.0,

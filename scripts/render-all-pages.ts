@@ -1,7 +1,11 @@
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
+import katex from 'katex';
 import { WATERMARK_TEXT } from '../src/core/branding';
+
+const katexCssPath = path.resolve('node_modules/katex/dist/katex.min.css');
+const katexCss = fs.existsSync(katexCssPath) ? fs.readFileSync(katexCssPath, 'utf-8') : '';
 
 const outputDir = path.resolve('test-results/export_audit');
 if (!fs.existsSync(outputDir)) {
@@ -10,6 +14,12 @@ if (!fs.existsSync(outputDir)) {
 
 async function renderAll() {
   const browser = await chromium.launch({ headless: true });
+
+  const convergenceFormula = '\\sum_{i=1}^{n} \\frac{x_i - \\mu}{\\sigma} \\approx 0';
+  const renderedFormulaHtml = katex.renderToString(convergenceFormula, {
+    displayMode: true,
+    throwOnError: false,
+  });
 
   // 1. DYNAMIC MULTI-PAGE A4 PDF IN DARK & LIGHT STYLES
   for (const pageStyle of ['dark', 'light'] as const) {
@@ -116,7 +126,7 @@ async function renderAll() {
 
             <p style="margin: 12px 0 6px 0; font-weight: 600;">5. Mathematical Convergence Formula:</p>
             <div style="background: ${userBg}; padding: 12px; border-radius: 6px; text-align: center; font-size: 15px; border: 1px solid ${border}; color: ${text};">
-              $$\\sum_{i=1}^{n} \\frac{x_i - \\mu}{\\sigma} \\approx 0$$
+              ${renderedFormulaHtml}
             </div>
           </div>
         `,
@@ -176,6 +186,7 @@ async function renderAll() {
         <head>
           <meta charset="UTF-8" />
           <style>
+            ${katexCss}
             body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #e2e8f0; }
             .a4-page {
               width: 794px;
@@ -236,6 +247,7 @@ async function renderAll() {
       <head>
         <meta charset="UTF-8">
         <style>
+          ${katexCss}
           body { margin: 0; padding: 32px; background: #18181b; color: #f4f4f5; font-family: -apple-system, sans-serif; }
           .header { border-bottom: 2px solid #27272a; padding-bottom: 12px; margin-bottom: 16px; }
           .msg { margin-bottom: 14px; padding: 14px; border-radius: 8px; font-size: 13px; line-height: 1.55; }
@@ -269,12 +281,11 @@ async function renderAll() {
           </table>
           <pre><code>def consensus(): return True # Raft implementation</code></pre>
           <p style="word-break: break-all; color: #38bdf8;">https://cloud.google.com/architecture/patterns-for-distributed-systems-resilience-and-disaster-recovery-in-multi-region-deployments-with-zero-data-loss-and-minimal-failover-rpo-rto</p>
-          <p>Formula: $$\\sum_{i=1}^{n} \\frac{x_i - \\mu}{\\sigma} \\approx 0$$</p>
+          <div style="margin: 12px 0;">${renderedFormulaHtml}</div>
         </div>
         <div class="msg user">👤 User: Can you summarize production readiness? 📝</div>
         <div class="msg assistant">🤖 Assistant: All systems checked and production-ready across global regions. 🎉 🚀</div>
-        <div class="footer">
-          <span>Chat2PDF Full Screenshot Export</span>
+        <div class="footer" style="justify-content: flex-end;">
           <span style="font-weight: 500;">${WATERMARK_TEXT}</span>
         </div>
       </body>

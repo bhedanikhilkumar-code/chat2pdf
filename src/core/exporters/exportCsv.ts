@@ -3,6 +3,7 @@ import type { Conversation, ExportOptions } from '../parser/types';
 import { filterMessages } from '../parser/filters';
 import { WATERMARK_TEXT } from '../branding';
 import { downloadBlob } from './downloadHelper';
+import { cleanMathToReadableText } from '../renderer/mathRenderer';
 
 interface CsvRow {
   index: number | string;
@@ -20,7 +21,7 @@ export async function exportCsv(
   const rows: CsvRow[] = messages.map((msg, i) => ({
     index: i + 1,
     role: msg.role,
-    message: msg.content,
+    message: cleanMathToReadableText(msg.content),
     attachments: msg.attachments && msg.attachments.length > 0
       ? msg.attachments.map((a) => a.name + (a.size ? ` (${a.size})` : '')).join('; ')
       : '',
