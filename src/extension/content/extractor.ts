@@ -30,7 +30,7 @@ let activeCancellationToken: { cancelled: boolean } | null = null;
 export function cancelCollection() {
   if (activeCancellationToken) {
     activeCancellationToken.cancelled = true;
-    console.log('[Chat2PDF] Extraction cancelled by user');
+    console.log('[Chat2PDF] Extraction cancelled by user token');
   }
 }
 
@@ -259,7 +259,7 @@ export function expandCollapsedContent(selectors?: SiteSelectors): number {
 
 /**
  * Collect full conversation by stepping upwards through scroll container,
- * resolving virtualized message nodes, and merging batches by overlap alignment.
+ * resolving virtualized message nodes, and merging batches in chronological order.
  */
 export async function collectFullConversation(
   onProgress?: (count: number, status: string) => void
@@ -286,7 +286,7 @@ export async function collectFullConversation(
 
   if (scrollContainer) {
     console.log(
-      `[Chat2PDF] scroll container found: <${scrollContainer.tagName.toLowerCase()}> class="${scrollContainer.className.slice(0, 60)}" scrollHeight=${scrollContainer.scrollHeight} clientHeight=${scrollContainer.clientHeight}`
+      `[Chat2PDF] scroll container found: <${scrollContainer.tagName.toLowerCase()}> class="${(scrollContainer.className || '').slice(0, 60)}" scrollHeight=${scrollContainer.scrollHeight} clientHeight=${scrollContainer.clientHeight}`
     );
   } else {
     console.log('[Chat2PDF] scroll container found: window/document fallback');
@@ -311,18 +311,20 @@ export async function collectFullConversation(
   const initialBatch = extractVisibleTurns(selectors);
   recordMessages(initialBatch);
   console.log(`[Chat2PDF] Initial scan count: ${messageMap.size} messages in ${Date.now() - startTime}ms`);
-  if (onProgress) onProgress(messageMap.size, 'Scanned initial view...');
+  if (onProgress) onProgress(messageMap.size, 'Scanning conversation...');
 
   const MAX_TIME_MS = 90000; // 90 second cap
-  let consecutiveStableRounds = 0;
-  let lastSize = messageMap.size;
   let round = 0;
 
   if (scrollContainer) {
-    // Step upwards to trigger lazy loading / virtual unrolling
-    while (consecutiveStableRounds < 3 && Date.now() - startTime < MAX_TIME_MS) {
+    // Phase 1: Scroll UPWARDS to unroll all earlier messages and reach the top
+    console.log('[Chat2PDF] Phase 1: Stepping upwards to load older messages...');
+    let consecutiveTopOrStable = 0;
+    let lastSize = messageMap.size;
+
+    while (consecutiveTopOrStable < 3 && Date.now() - startTime < MAX_TIME_MS) {
       if (token.cancelled) {
-        console.log('[Chat2PDF] Collection cancelled by token');
+        console.log('[Chat2PDF] Collection cancelled by user token');
         break;
       }
       round++;
@@ -350,11 +352,11 @@ export async function collectFullConversation(
       }
 
       // Scroll up by viewport step
-      const step = scrollContainer.clientHeight || 600;
+      const step = Math.max(300, Math.floor((scrollContainer.clientHeight || 600) * 0.8));
       scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop - step);
 
-      // Wait for DOM mutations or idle settle
-      await new Promise((resolve) => setTimeout(resolve, 350));
+      // Wait for DOM mutations or settle
+      await new Promise((resolve) => setTimeout(resolve, 300));
       expandCollapsedContent(selectors);
 
       const batch = extractVisibleTurns(selectors);
@@ -362,30 +364,63 @@ export async function collectFullConversation(
 
       const batchDelta = messageMap.size - lastSize;
       console.log(
-        `[Chat2PDF] Round ${round}: count per round=${batch.length} (new=${batchDelta}), total=${messageMap.size}, scrollTop=${scrollContainer.scrollTop}, time=${Date.now() - startTime}ms`
+        `[Chat2PDF] Round ${round} (up): count per round=${batch.length} (new=${batchDelta}), total=${messageMap.size}, scrollTop=${scrollContainer.scrollTop}, time=${Date.now() - startTime}ms`
       );
 
-      if (messageMap.size === lastSize) {
-        consecutiveStableRounds++;
+      if (messageMap.size === lastSize && scrollContainer.scrollTop === 0) {
+        consecutiveTopOrStable++;
       } else {
-        consecutiveStableRounds = 0;
+        consecutiveTopOrStable = 0;
         lastSize = messageMap.size;
       }
 
       if (onProgress) {
         onProgress(messageMap.size, `Loading older messages... ${messageMap.size} found`);
       }
-
-      if (scrollContainer.scrollTop === 0) {
-        consecutiveStableRounds++;
-      }
     }
 
-    // Scroll back down in steps to ensure bottom-most items are fully captured
-    console.log(`[Chat2PDF] Scrolling back down to finalize capture...`);
-    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+    // Phase 2: Now that top is reached, step DOWNWARDS to capture full thread in strict chronological order
+    console.log('[Chat2PDF] Phase 2: Stepping downwards to ensure complete chronological capture...');
+    orderedIds.length = 0;
+    messageMap.clear();
+
+    scrollContainer.scrollTop = 0;
     await new Promise((resolve) => setTimeout(resolve, 300));
+    expandCollapsedContent(selectors);
     recordMessages(extractVisibleTurns(selectors));
+
+    let atBottomRounds = 0;
+    while (atBottomRounds < 2 && Date.now() - startTime < MAX_TIME_MS) {
+      if (token.cancelled) break;
+      round++;
+
+      const step = Math.max(300, Math.floor((scrollContainer.clientHeight || 600) * 0.8));
+      const prevScrollTop = scrollContainer.scrollTop;
+      scrollContainer.scrollTop = Math.min(scrollContainer.scrollHeight, scrollContainer.scrollTop + step);
+
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      expandCollapsedContent(selectors);
+
+      const batch = extractVisibleTurns(selectors);
+      const prevTotal = messageMap.size;
+      recordMessages(batch);
+      const batchDelta = messageMap.size - prevTotal;
+
+      console.log(
+        `[Chat2PDF] Round ${round} (down): count per round=${batch.length} (new=${batchDelta}), total=${messageMap.size}, scrollTop=${scrollContainer.scrollTop}, time=${Date.now() - startTime}ms`
+      );
+
+      if (
+        scrollContainer.scrollTop >= scrollContainer.scrollHeight - scrollContainer.clientHeight - 5 ||
+        scrollContainer.scrollTop === prevScrollTop
+      ) {
+        atBottomRounds++;
+      }
+
+      if (onProgress) {
+        onProgress(messageMap.size, `Indexing full chat... ${messageMap.size} messages found`);
+      }
+    }
 
     // Restore original scroll
     scrollContainer.scrollTop = originalScrollTop;
@@ -395,7 +430,6 @@ export async function collectFullConversation(
   const elapsed = Date.now() - startTime;
   console.log(`[Chat2PDF] Extraction finished in ${elapsed}ms: rounds=${round}, total messages=${messageMap.size}`);
 
-  // Final ordered message list
   const finalMessages = orderedIds.map((id) => messageMap.get(id)!);
 
   return {

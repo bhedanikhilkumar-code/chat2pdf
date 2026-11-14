@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Download, ExternalLink, RefreshCw, AlertCircle, CheckCircle2, Globe, XCircle, AlertTriangle } from 'lucide-react';
+import { Download, ExternalLink, RefreshCw, AlertCircle, CheckCircle2, Globe, XCircle, AlertTriangle, Copy, Check } from 'lucide-react';
 
 const Popup: React.FC = () => {
   const [status, setStatus] = useState<string>('');
@@ -9,6 +9,9 @@ const Popup: React.FC = () => {
   const [isSupported, setIsSupported] = useState<boolean>(false);
   const [messageCount, setMessageCount] = useState<number | null>(null);
   const [sanityWarning, setSanityWarning] = useState<string | null>(null);
+  const [friendlyError, setFriendlyError] = useState<string | null>(null);
+  const [rawErrorDetails, setRawErrorDetails] = useState<string | null>(null);
+  const [copied, setCopied] = useState<boolean>(false);
 
   const supportedHosts = [
     'chatgpt.com',
@@ -29,21 +32,26 @@ const Popup: React.FC = () => {
             setCurrentHost(host);
             const supported = supportedHosts.some((h) => host.includes(h));
             setIsSupported(supported);
+            console.log(`[Chat2PDF] Popup initialized for host: ${host} (supported=${supported})`);
 
             if (tabs[0]?.id && supported) {
               chrome.tabs.sendMessage(tabs[0].id, { action: 'EXTRACT_CHAT' }, (res) => {
                 if (res?.success && res.data?.messages) {
+                  console.log(`[Chat2PDF] Initial DOM message count: ${res.data.messages.length}`);
                   setMessageCount(res.data.messages.length);
                 }
               });
             }
-          } catch (e) {}
+          } catch (e) {
+            console.warn('[Chat2PDF] Error parsing active tab URL', e);
+          }
         }
       });
 
       // Listen for progressive load updates
       const listener = (msg: any) => {
         if (msg.action === 'EXTRACTION_PROGRESS') {
+          console.log(`[Chat2PDF] Progress update: ${msg.count} messages - ${msg.status}`);
           setMessageCount(msg.count);
           setStatus(msg.status);
         }
@@ -57,9 +65,13 @@ const Popup: React.FC = () => {
     setLoading(true);
     setStatus('Loading conversation & scrolling older messages...');
     setSanityWarning(null);
+    setFriendlyError(null);
+    setRawErrorDetails(null);
+    setCopied(false);
 
     if (typeof chrome === 'undefined' || !chrome.tabs) {
-      setStatus('Error: Chrome extension APIs not available');
+      setFriendlyError('Extension APIs not available in this environment.');
+      setRawErrorDetails('chrome.tabs API is undefined');
       setLoading(false);
       return;
     }
@@ -67,14 +79,20 @@ const Popup: React.FC = () => {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab?.id) {
-        setStatus('Error: No active tab found');
+        setFriendlyError('No active browser tab found to export from.');
+        setRawErrorDetails('chrome.tabs.query returned no active tab');
         setLoading(false);
         return;
       }
 
+      console.log(`[Chat2PDF] Sending EXTRACT_FULL_CHAT request to tab ${tab.id}`);
+
       chrome.tabs.sendMessage(tab.id, { action: 'EXTRACT_FULL_CHAT' }, (response) => {
         if (chrome.runtime.lastError) {
-          setStatus('Cannot connect to page. Please refresh the chat page and try again.');
+          const raw = chrome.runtime.lastError.message || 'Port disconnected';
+          console.error('[Chat2PDF] chrome.runtime.lastError:', raw);
+          setFriendlyError('Cannot connect to page. Please refresh the chat page and try again.');
+          setRawErrorDetails(`[Chat2PDF Error Details]\nType: Tab Connection Error\nMessage: ${raw}\nHost: ${currentHost}\nTime: ${new Date().toISOString()}`);
           setLoading(false);
           return;
         }
@@ -82,12 +100,15 @@ const Popup: React.FC = () => {
         if (response?.success && response.data) {
           const { messages, title, source } = response.data;
           if (!messages || messages.length === 0) {
-            setStatus('No conversation detected. Ensure you are on an active chat thread.');
+            console.warn('[Chat2PDF] Received empty message array from extractor');
+            setFriendlyError('No conversation detected. Ensure you are on an active chat thread with loaded messages.');
+            setRawErrorDetails(`[Chat2PDF Error Details]\nType: Empty Conversation\nHost: ${currentHost}\nTitle: ${title}\nTime: ${new Date().toISOString()}`);
             setLoading(false);
             return;
           }
 
           setMessageCount(messages.length);
+          console.log(`[Chat2PDF] Full chat extracted successfully: ${messages.length} messages`);
 
           // Sanity check: verify plausible role alternation
           let nonAlternating = 0;
@@ -117,13 +138,40 @@ const Popup: React.FC = () => {
             }
           );
         } else {
-          setStatus(response?.error || 'Failed to extract messages. Check if the chat has finished loading.');
+          const raw = response?.error || 'Extraction returned falsy success response';
+          console.error('[Chat2PDF] Extraction error response:', raw);
+          setFriendlyError('Failed to extract chat. The page structure may have changed or the chat is still loading.');
+          setRawErrorDetails(`[Chat2PDF Error Details]\nType: Extraction Failure\nMessage: ${raw}\nHost: ${currentHost}\nTime: ${new Date().toISOString()}`);
           setLoading(false);
         }
       });
     } catch (err: any) {
-      setStatus('Failed: ' + (err.message || 'Unknown error'));
+      const raw = err?.stack || err?.message || String(err);
+      console.error('[Chat2PDF] Unexpected extraction exception:', raw);
+      setFriendlyError('An unexpected error occurred during extraction. Please try refreshing the tab.');
+      setRawErrorDetails(`[Chat2PDF Error Details]\nType: Exception Caught\nError: ${raw}\nHost: ${currentHost}\nTime: ${new Date().toISOString()}`);
       setLoading(false);
+    }
+  };
+
+  const handleCopyErrorDetails = () => {
+    if (!rawErrorDetails) return;
+    try {
+      navigator.clipboard.writeText(rawErrorDetails).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }).catch(() => {
+        const textarea = document.createElement('textarea');
+        textarea.value = rawErrorDetails;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    } catch (e) {
+      console.error('[Chat2PDF] Failed to copy error details', e);
     }
   };
 
@@ -136,6 +184,7 @@ const Popup: React.FC = () => {
     }
     setLoading(false);
     setStatus('Extraction cancelled.');
+    console.log('[Chat2PDF] Extraction cancelled from popup UI');
   };
 
   const openStandaloneExporter = () => {
@@ -258,26 +307,71 @@ const Popup: React.FC = () => {
         </div>
       )}
 
-      {/* Status Message */}
-      {status && (
+      {/* Friendly Error Box with Copy Error Details */}
+      {friendlyError && (
+        <div
+          style={{
+            marginTop: '12px',
+            padding: '10px 12px',
+            borderRadius: '10px',
+            fontSize: '11.5px',
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            color: '#991b1b',
+            lineHeight: 1.4,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginBottom: '8px' }}>
+            <AlertCircle style={{ width: '15px', height: '15px', color: '#dc2626', flexShrink: 0, marginTop: '1px' }} />
+            <span style={{ fontWeight: 500 }}>{friendlyError}</span>
+          </div>
+          {rawErrorDetails && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+              <button
+                onClick={handleCopyErrorDetails}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '4px 8px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: copied ? '#15803d' : '#b91c1c',
+                  backgroundColor: '#ffffff',
+                  border: copied ? '1px solid #86efac' : '1px solid #fca5a5',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                }}
+              >
+                {copied ? <Check style={{ width: '12px', height: '12px' }} /> : <Copy style={{ width: '12px', height: '12px' }} />}
+                <span>{copied ? 'Copied details!' : 'Copy error details'}</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Normal Status Message (when not error) */}
+      {!friendlyError && status && (
         <div
           style={{
             marginTop: '12px',
             padding: '8px 10px',
             borderRadius: '8px',
             fontSize: '11px',
-            backgroundColor: status.includes('Error') || status.includes('Cannot') || status.includes('Failed') ? '#fef2f2' : '#f0fdf4',
-            color: status.includes('Error') || status.includes('Cannot') || status.includes('Failed') ? '#dc2626' : '#15803d',
+            backgroundColor: status.includes('Success') ? '#f0fdf4' : '#f8fafc',
+            color: status.includes('Success') ? '#15803d' : '#475569',
+            border: status.includes('Success') ? '1px solid #bbf7d0' : '1px solid #e2e8f0',
             lineHeight: 1.4,
             display: 'flex',
             alignItems: 'flex-start',
             gap: '6px',
           }}
         >
-          {status.includes('Error') || status.includes('Cannot') || status.includes('Failed') ? (
-            <AlertCircle style={{ width: '14px', height: '14px', marginTop: '1px', flexShrink: 0 }} />
-          ) : (
+          {status.includes('Success') ? (
             <CheckCircle2 style={{ width: '14px', height: '14px', marginTop: '1px', flexShrink: 0 }} />
+          ) : (
+            <RefreshCw style={{ width: '14px', height: '14px', marginTop: '1px', flexShrink: 0, animation: loading ? 'spin 1.5s linear infinite' : 'none' }} />
           )}
           <span>{status}</span>
         </div>
