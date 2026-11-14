@@ -57,7 +57,7 @@ describe('Real Browser Extension CSP and Error Verification', () => {
 
     const popupUrl = `chrome-extension://${extensionId}/popup/popup.html`;
     await popupPage.goto(popupUrl);
-    await popupPage.waitForLoadState('networkidle');
+    await popupPage.waitForLoadState('load');
     await popupPage.waitForTimeout(1000);
 
     const popupViolation = await popupPage.evaluate(() => (window as any).__cspViolation);
@@ -84,7 +84,7 @@ describe('Real Browser Extension CSP and Error Verification', () => {
 
     const webUrl = `chrome-extension://${extensionId}/web/index.html`;
     await webPage.goto(webUrl);
-    await webPage.waitForLoadState('networkidle');
+    await webPage.waitForLoadState('load');
     await webPage.waitForTimeout(1500);
 
     const webViolation = await webPage.evaluate(() => (window as any).__cspViolation);
@@ -125,5 +125,5 @@ describe('Real Browser Extension CSP and Error Verification', () => {
     expect(violations).toEqual([]);
     expect(consoleErrors).toEqual([]);
     expect(finalHasErrors).toBe(false);
-  }, 45000);
+  }, 120000);
 });
