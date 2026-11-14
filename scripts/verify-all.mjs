@@ -37,9 +37,25 @@ function runCmd(cmd, args = [], options = {}) {
 
 async function checkLibreOffice() {
   const start = Date.now();
-  const res = await runCmd('soffice', ['--version']);
+  const searchLocations = [
+    'PATH (where.exe soffice / which soffice)',
+    'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
+    'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
+    path.join(process.env.LOCALAPPDATA || '', 'Programs\\LibreOffice\\program\\soffice.exe'),
+  ];
+
+  let res = await runCmd('soffice', ['--version']);
+  if (!res.passed) {
+    for (const p of searchLocations.slice(1)) {
+      if (fs.existsSync(p)) {
+        res = await runCmd(`"${p}"`, ['--version']);
+        if (res.passed) break;
+      }
+    }
+  }
+
   const duration = ((Date.now() - start) / 1000).toFixed(2) + 's';
-  if (res.passed) {
+  if (res && res.passed) {
     return {
       status: 'PASS',
       duration,
@@ -49,7 +65,7 @@ async function checkLibreOffice() {
   return {
     status: 'NOT RUN',
     duration,
-    details: 'LibreOffice (soffice) not found in system PATH. Install via: winget install TheDocumentFoundation.LibreOffice',
+    details: `soffice not found. Searched: ${searchLocations.join('; ')}`,
   };
 }
 
@@ -96,22 +112,63 @@ async function main() {
   }
 
   // 4. Vitest Unit & Browser Tests
-  console.log('\n[4/5] Running Vitest (unit, edge cases, selectors, collector, CSP, preview, export, a11y)...');
-  const vitestRes = await runCmd('npx', ['vitest', 'run']);
-  const vitestStatus = vitestRes.passed ? 'PASS' : 'FAIL';
+  console.log('\n[4/5] Running Vitest (unit, edge cases, selectors, collector, CSP, preview, export, a11y, visual, multipage)...');
+  const resultsJsonPath = path.resolve('test-results/vitest-results.json');
+  if (!fs.existsSync(path.dirname(resultsJsonPath))) {
+    fs.mkdirSync(path.dirname(resultsJsonPath), { recursive: true });
+  }
+
+  const vitestRes = await runCmd('npx', [
+    'vitest',
+    'run',
+    '--reporter=json',
+    `--outputFile=${resultsJsonPath}`,
+  ]);
+
+  let vitestStatus = vitestRes.passed ? 'PASS' : 'FAIL';
+  let checkLabel = 'Vitest Full Test Suite';
+  let proofSummary = '';
+
+  try {
+    if (fs.existsSync(resultsJsonPath)) {
+      const jsonReport = JSON.parse(fs.readFileSync(resultsJsonPath, 'utf8'));
+      const numTotalTests = jsonReport.numTotalTests || 0;
+      const numPassedTests = jsonReport.numPassedTests || 0;
+      const testFiles = jsonReport.testResults || [];
+      const fileCount = testFiles.length;
+
+      // Confirm required test files are included
+      const includedNames = testFiles.map((t) => t.name.replace(/\\/g, '/'));
+      const hasMultipage = includedNames.some((n) => n.includes('handwriting_multipage.test.ts'));
+      const hasVisualAudit = includedNames.some((n) => n.includes('export_visual_audit.test.ts'));
+
+      if (!hasMultipage || !hasVisualAudit) {
+        vitestStatus = 'FAIL';
+        allClean = false;
+        console.error('Missing required test files in vitest run! multipage:', hasMultipage, 'visualAudit:', hasVisualAudit);
+      }
+
+      checkLabel = `Vitest Full Test Suite (${fileCount} suites, ${numTotalTests} tests)`;
+      proofSummary = `${numPassedTests}/${numTotalTests} passed across ${fileCount} test suites (confirmed: handwriting_multipage & export_visual_audit)`;
+    } else {
+      proofSummary = vitestRes.stdout.slice(0, 100);
+    }
+  } catch (err) {
+    vitestStatus = 'FAIL';
+    allClean = false;
+    proofSummary = `Failed to parse vitest JSON report: ${err.message}`;
+  }
+
   if (!vitestRes.passed) {
     allClean = false;
     console.error('Vitest Error Output:\n', vitestRes.stderr || vitestRes.stdout);
   }
 
-  const matchTests = vitestRes.stdout.match(/Tests\s+([\d]+\s+passed)/);
-  const testSummary = matchTests ? `${matchTests[1]} across all test files` : (vitestRes.passed ? 'All tests passed' : vitestRes.stdout.slice(0, 100));
-
   tableRows.push({
-    Check: 'Vitest Full Test Suite (10 suites, 40 tests)',
+    Check: checkLabel,
     Status: vitestStatus,
     Duration: vitestRes.duration,
-    Proof: testSummary,
+    Proof: proofSummary,
   });
   console.log(`  -> ${vitestStatus} (${vitestRes.duration})`);
 
