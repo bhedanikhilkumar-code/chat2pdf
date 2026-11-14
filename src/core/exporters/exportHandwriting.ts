@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf';
+import JSZip from 'jszip';
 import type {
   Conversation,
   ExportOptions,
@@ -287,26 +288,29 @@ export async function exportHandwriting(
     const blob = doc.output('blob');
     await downloadBlob(blob, `${fileName}.pdf`);
   } else {
-    // Generate valid JPEG image (single page or vertically stitched multi-page)
-    let finalCanvas: HTMLCanvasElement;
+    // Generate valid JPEG image(s)
     if (pageCanvases.length === 1) {
-      finalCanvas = pageCanvases[0];
-    } else {
-      finalCanvas = document.createElement('canvas');
-      finalCanvas.width = PAGE_W;
-      finalCanvas.height = PAGE_H * pageCanvases.length;
-      const fCtx = finalCanvas.getContext('2d')!;
-      for (let i = 0; i < pageCanvases.length; i++) {
-        fCtx.drawImage(pageCanvases[i], 0, i * PAGE_H);
+      const blob = await new Promise<Blob | null>((resolve) => {
+        pageCanvases[0].toBlob(resolve, 'image/jpeg', 0.92);
+      });
+      if (blob) {
+        await downloadBlob(blob, `${fileName}.jpg`);
       }
-    }
-
-    const blob = await new Promise<Blob | null>((resolve) => {
-      finalCanvas.toBlob(resolve, 'image/jpeg', 0.92);
-    });
-
-    if (blob) {
-      await downloadBlob(blob, `${fileName}.jpg`);
+    } else {
+      // Multi-page: NEVER build one giant stitched canvas!
+      // Deliver a .zip with page-01.jpg, page-02.jpg, ...
+      const zip = new JSZip();
+      for (let i = 0; i < pageCanvases.length; i++) {
+        const pageNum = String(i + 1).padStart(2, '0');
+        const pageBlob = await new Promise<Blob | null>((resolve) => {
+          pageCanvases[i].toBlob(resolve, 'image/jpeg', 0.92);
+        });
+        if (pageBlob) {
+          zip.file(`page-${pageNum}.jpg`, pageBlob);
+        }
+      }
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      await downloadBlob(zipBlob, `${fileName}.zip`);
     }
   }
 }
