@@ -47,7 +47,7 @@ export async function exportMarkdown(
     if (msg.attachments && msg.attachments.length > 0) {
       parts.push('**Attachments:**');
       msg.attachments.forEach((att) => {
-        parts.push(`- 📎 \`${att.name}\`${att.size ? ` (${att.size})` : ''}`);
+        parts.push(`- [Attachment: ${att.name}]${att.size ? ` (${att.size})` : ''}`);
       });
       parts.push('');
     }
