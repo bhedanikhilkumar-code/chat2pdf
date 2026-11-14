@@ -7,8 +7,8 @@ export const geminiSelectors: SiteSelectors = {
   messageContent: '.markdown, .prose, div[class*=markdown], message-content',
   chatTitle: 'h1.conversation-title, [data-test-id=conversation-title], h1',
   scrollContainer: '.chat-history, infinite-scroller, [class*="chat-window"], main',
-  loadEarlierButton: 'button[class*="load-more"], button:has-text("Load older")',
-  expandButtons: 'button[aria-label*="Expand"], button:has-text("Show more")',
+  loadEarlierButton: 'button[class*="load-more"], button[aria-label*="Load older"]',
+  expandButtons: 'button[aria-label*="Expand"], button[aria-label*="Show more"]',
   attachmentContainer: '[class*="attachment"], [class*="file-chip"], [class*="image-preview"]',
   junkSelectors: [
 

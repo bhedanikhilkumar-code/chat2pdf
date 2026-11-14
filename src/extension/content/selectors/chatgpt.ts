@@ -7,8 +7,8 @@ export const chatgptSelectors: SiteSelectors = {
   messageContent: '.markdown, [data-message-author-role] .markdown, div[class*=markdown], .prose',
   chatTitle: 'h1, [data-testid=conversation-title], title',
   scrollContainer: 'main div[class*="overflow-y-auto"], [data-testid="conversation-turn-list"], div[class*="react-scroll-to-bottom"]',
-  loadEarlierButton: 'button[data-testid*="load-more"], button[class*="load-earlier"], button:has-text("Show earlier")',
-  expandButtons: 'button[aria-label*="Expand"], button[aria-label*="Show more"], button:has-text("Read more")',
+  loadEarlierButton: 'button[data-testid*="load-more"], button[class*="load-earlier"]',
+  expandButtons: 'button[aria-label*="Expand"], button[aria-label*="Show more"]',
   attachmentContainer: '[data-testid="attachment"], [class*="attachment"], [class*="file-pill"], [class*="image-container"]',
   junkSelectors: [
 

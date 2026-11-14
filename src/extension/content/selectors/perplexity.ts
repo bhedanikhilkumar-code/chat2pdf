@@ -3,7 +3,7 @@
 export const perplexitySelectors: SiteSelectors = {
   messageContainer: '[class*=ConversationPair], [class*=question-answer], div[class*=col-span-12], div[class*=border-b][class*=border-borderMain]',
   userMessage: '[class*=query], [class*=Question], div[class*=font-display], div[class*=userQuery]',
-  assistantMessage: '[class*=answer], [class*=Answer], [class*=response], div[class*=prose], div[class*=default prose]',
+  assistantMessage: '[class*=answer], [class*=Answer], [class*=response], div[class*=prose], div[class*="default prose"]',
   messageContent: '.prose, .markdown, [class*=markdown], div[class*=break-words]',
   chatTitle: 'h1, [class*=thread-title], title',
   junkSelectors: [

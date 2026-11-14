@@ -5,9 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "test": "vitest run",
+    "check:selectors": "node scripts/check-selectors.js",
+    "check:csp": "node scripts/check-extension-csp.js",
     "build:web": "vite build",
-    "build:extension": "npm run build:web:ext && vite build --config vite.config.ext.ts && node scripts/finalize-extension.js",
-    "build": "npm run build:web && npm run build:extension",
+    "build:extension": "npm run check:selectors && npm run build:web:ext && vite build --config vite.config.ext.ts && node scripts/finalize-extension.js && npm run check:csp",
+    "build": "npm run check:selectors && npm run build:web && npm run build:extension",
     "build:web:ext": "vite build --mode extension --outDir dist-web-ext"
   },
   "keywords": [],
@@ -51,6 +54,7 @@
     "typescript": "^7.0.2",
     "vite": "^8.3.8",
     "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^5.1.0",
     "workbox-precaching": "^7.4.1"
   }
 }

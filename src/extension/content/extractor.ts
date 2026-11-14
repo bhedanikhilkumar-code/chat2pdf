@@ -3,6 +3,13 @@ import { gfm } from 'turndown-plugin-gfm';
 import { getSelectorsForHost } from './selectors/index';
 import { cleanText } from '../../core/parser/cleaners';
 import type { Attachment, SiteSelectors } from '../../core/parser/types';
+import {
+  safeQuerySelector,
+  safeQuerySelectorAll,
+  safeMatches,
+  findButtonByText,
+  findButtonsByText,
+} from './dom-utils';
 
 export interface ExtractedMessage {
   id?: string;
@@ -23,6 +30,7 @@ let activeCancellationToken: { cancelled: boolean } | null = null;
 export function cancelCollection() {
   if (activeCancellationToken) {
     activeCancellationToken.cancelled = true;
+    console.log('[Chat2PDF] Extraction cancelled by user');
   }
 }
 
@@ -47,7 +55,7 @@ function createTurndown(): TurndownService {
     },
     replacement: (_content, node, _options) => {
       const el = node as HTMLElement;
-      const codeEl = el.querySelector('code') || el;
+      const codeEl = safeQuerySelector<HTMLElement>(el, 'code') || el;
       const langClass = Array.from(codeEl.classList).find((c) => c.startsWith('language-'));
       const lang = langClass ? langClass.replace('language-', '') : '';
       const text = codeEl.textContent || '';
@@ -66,12 +74,19 @@ function cleanNodeToMarkdown(node: HTMLElement, junkSelectors: string[]): string
   if (junkSelectors && junkSelectors.length > 0) {
     junkSelectors.forEach((junkSel) => {
       try {
-        cloned.querySelectorAll(junkSel).forEach((el) => el.remove());
-      } catch (e) {}
+        const junkEls = safeQuerySelectorAll(cloned, junkSel);
+        junkEls.forEach((el) => el.remove());
+      } catch (e) {
+        console.warn(`[Chat2PDF] selector failed: ${junkSel}`, e);
+      }
     });
   }
 
-  cloned.querySelectorAll('button, .copy-code-button, [aria-label*="Copy"]').forEach((el) => el.remove());
+  const buttons = safeQuerySelectorAll(
+    cloned,
+    'button, .copy-code-button, [aria-label*="Copy"]'
+  );
+  buttons.forEach((el) => el.remove());
 
   try {
     const md = turndown.turndown(cloned.innerHTML);
@@ -85,16 +100,21 @@ function cleanNodeToMarkdown(node: HTMLElement, junkSelectors: string[]): string
 // Extract attachments from user turns
 function extractAttachments(turnNode: HTMLElement, selectors?: SiteSelectors): Attachment[] {
   const attachments: Attachment[] = [];
-  const containerSel = selectors?.attachmentContainer || '[class*="attachment"], [class*="file-chip"], [class*="file-pill"]';
+  const containerSel =
+    selectors?.attachmentContainer ||
+    '[class*="attachment"], [class*="file-chip"], [class*="file-pill"]';
 
-  const items = Array.from(turnNode.querySelectorAll(containerSel)) as HTMLElement[];
+  const items = safeQuerySelectorAll<HTMLElement>(turnNode, containerSel);
   items.forEach((item) => {
-    const nameEl = item.querySelector('[class*="name"], [class*="title"], span, div');
+    const nameEl = safeQuerySelector<HTMLElement>(
+      item,
+      '[class*="name"], [class*="title"], span, div'
+    );
     const name = nameEl?.textContent?.trim() || item.getAttribute('aria-label') || 'attached-file';
-    
+
     // Check if thumbnail/image
     let thumbnail: string | undefined;
-    const imgEl = item.querySelector('img') as HTMLImageElement | null;
+    const imgEl = safeQuerySelector<HTMLImageElement>(item, 'img');
     if (imgEl && imgEl.src && imgEl.src.startsWith('data:')) {
       thumbnail = imgEl.src;
     }
@@ -135,13 +155,15 @@ export function extractVisibleTurns(selectors?: SiteSelectors): ExtractedMessage
   const extracted: ExtractedMessage[] = [];
 
   if (selectors) {
-    const turns = Array.from(document.querySelectorAll(selectors.messageContainer)) as HTMLElement[];
+    const turns = safeQuerySelectorAll<HTMLElement>(document, selectors.messageContainer);
     if (turns.length > 0) {
       turns.forEach((turn) => {
-        const isUser = turn.matches(selectors.userMessage) || turn.querySelector(selectors.userMessage) !== null;
+        const isUser =
+          safeMatches(turn, selectors.userMessage) ||
+          safeQuerySelector(turn, selectors.userMessage) !== null;
         const role: 'user' | 'assistant' = isUser ? 'user' : 'assistant';
 
-        const contentEl = (turn.querySelector(selectors.messageContent) as HTMLElement) || turn;
+        const contentEl = safeQuerySelector<HTMLElement>(turn, selectors.messageContent) || turn;
         const cleaned = cleanNodeToMarkdown(contentEl, junk);
 
         if (cleaned) {
@@ -165,16 +187,18 @@ export function extractVisibleTurns(selectors?: SiteSelectors): ExtractedMessage
   }
 
   // Fallback heuristics
-  const candidateTurns = Array.from(
-    document.querySelectorAll('[data-message-author-role], article, [class*=message], [class*=chat-turn]')
-  ) as HTMLElement[];
+  const candidateTurns = safeQuerySelectorAll<HTMLElement>(
+    document,
+    '[data-message-author-role], article, [class*=message], [class*=chat-turn]'
+  );
 
   candidateTurns.forEach((turn) => {
     const roleAttr = (turn.getAttribute('data-message-author-role') || turn.className || '').toLowerCase();
     const isUser = roleAttr.includes('user') || roleAttr.includes('human');
     const role: 'user' | 'assistant' = isUser ? 'user' : 'assistant';
 
-    const contentEl = (turn.querySelector('.markdown, .prose, [class*=content]') as HTMLElement) || turn;
+    const contentEl =
+      safeQuerySelector<HTMLElement>(turn, '.markdown, .prose, [class*=content]') || turn;
     const cleaned = cleanNodeToMarkdown(contentEl, defaultJunk);
 
     if (cleaned && cleaned.length > 3) {
@@ -189,34 +213,48 @@ export function extractVisibleTurns(selectors?: SiteSelectors): ExtractedMessage
 // Find chat scroll container with site-specific and common fallbacks
 export function findScrollContainer(selectors?: SiteSelectors): HTMLElement | null {
   if (selectors?.scrollContainer) {
-    const el = document.querySelector(selectors.scrollContainer) as HTMLElement | null;
+    const el = safeQuerySelector<HTMLElement>(document, selectors.scrollContainer);
     if (el && el.scrollHeight > el.clientHeight) return el;
   }
 
   // Universal fallback scan for scrollable container
-  const candidates = Array.from(document.querySelectorAll('main, div, section')) as HTMLElement[];
+  const candidates = safeQuerySelectorAll<HTMLElement>(document, 'main, div, section');
   for (const el of candidates) {
-    const style = window.getComputedStyle(el);
-    const overflowY = style.overflowY;
-    if ((overflowY === 'auto' || overflowY === 'scroll') && el.scrollHeight > el.clientHeight + 100) {
-      return el;
-    }
+    try {
+      const style = window.getComputedStyle(el);
+      const overflowY = style.overflowY;
+      if ((overflowY === 'auto' || overflowY === 'scroll') && el.scrollHeight > el.clientHeight + 100) {
+        return el;
+      }
+    } catch (e) {}
   }
 
   return (document.scrollingElement as HTMLElement) || document.documentElement || document.body;
 }
 
 // Expand collapsed content buttons before reading
-export function expandCollapsedContent(selectors?: SiteSelectors) {
+export function expandCollapsedContent(selectors?: SiteSelectors): number {
   const expandSelector =
     selectors?.expandButtons ||
-    'button[aria-label*="Expand"], button[aria-label*="Show more"], button:has-text("Show more"), button:has-text("Read more")';
+    'button[aria-label*="Expand"], button[aria-label*="Show more"]';
 
-  try {
-    document.querySelectorAll(expandSelector).forEach((btn) => {
-      (btn as HTMLElement).click();
-    });
-  } catch (e) {}
+  const buttons = safeQuerySelectorAll<HTMLElement>(document, expandSelector);
+  const textButtons = findButtonsByText(document, /show more|read more|expand/i);
+
+  let clicked = 0;
+  const allToClick = new Set<HTMLElement>([...buttons, ...textButtons]);
+  allToClick.forEach((btn) => {
+    try {
+      btn.click();
+      clicked++;
+    } catch (e) {
+      console.warn('[Chat2PDF] Failed to click expand button', e);
+    }
+  });
+  if (clicked > 0) {
+    console.log(`[Chat2PDF] buttons clicked (expand): ${clicked}`);
+  }
+  return clicked;
 }
 
 /**
@@ -226,12 +264,15 @@ export function expandCollapsedContent(selectors?: SiteSelectors) {
 export async function collectFullConversation(
   onProgress?: (count: number, status: string) => void
 ): Promise<ExtractedConversation> {
+  const startTime = Date.now();
   const hostname = window.location.hostname.replace(/^www\./, '');
   const selectors = getSelectorsForHost(hostname) || getSelectorsForHost(window.location.hostname) || undefined;
 
+  console.log(`[Chat2PDF] Starting full-chat extraction on host: ${hostname}`);
+
   let title = document.title || 'Exported Chat';
   if (selectors?.chatTitle) {
-    const titleEl = document.querySelector(selectors.chatTitle);
+    const titleEl = safeQuerySelector(document, selectors.chatTitle);
     if (titleEl && titleEl.textContent) {
       title = titleEl.textContent.trim();
     }
@@ -242,6 +283,14 @@ export async function collectFullConversation(
 
   const scrollContainer = findScrollContainer(selectors);
   const originalScrollTop = scrollContainer ? scrollContainer.scrollTop : window.scrollY;
+
+  if (scrollContainer) {
+    console.log(
+      `[Chat2PDF] scroll container found: <${scrollContainer.tagName.toLowerCase()}> class="${scrollContainer.className.slice(0, 60)}" scrollHeight=${scrollContainer.scrollHeight} clientHeight=${scrollContainer.clientHeight}`
+    );
+  } else {
+    console.log('[Chat2PDF] scroll container found: window/document fallback');
+  }
 
   // Master map of collected messages keyed by stable ID
   const messageMap = new Map<string, ExtractedMessage>();
@@ -259,23 +308,45 @@ export async function collectFullConversation(
 
   // Initial pass at current position
   expandCollapsedContent(selectors);
-  recordMessages(extractVisibleTurns(selectors));
+  const initialBatch = extractVisibleTurns(selectors);
+  recordMessages(initialBatch);
+  console.log(`[Chat2PDF] Initial scan count: ${messageMap.size} messages in ${Date.now() - startTime}ms`);
   if (onProgress) onProgress(messageMap.size, 'Scanned initial view...');
 
-  const startTime = Date.now();
   const MAX_TIME_MS = 90000; // 90 second cap
   let consecutiveStableRounds = 0;
   let lastSize = messageMap.size;
+  let round = 0;
 
   if (scrollContainer) {
     // Step upwards to trigger lazy loading / virtual unrolling
     while (consecutiveStableRounds < 3 && Date.now() - startTime < MAX_TIME_MS) {
-      if (token.cancelled) break;
+      if (token.cancelled) {
+        console.log('[Chat2PDF] Collection cancelled by token');
+        break;
+      }
+      round++;
 
       // Click "load earlier" if button exists
+      let loadBtnClicked = false;
       if (selectors?.loadEarlierButton) {
-        const btn = document.querySelector(selectors.loadEarlierButton) as HTMLElement | null;
-        if (btn) btn.click();
+        const btn = safeQuerySelector<HTMLElement>(document, selectors.loadEarlierButton);
+        if (btn) {
+          console.log(`[Chat2PDF] buttons clicked: load earlier via selector "${selectors.loadEarlierButton}"`);
+          btn.click();
+          loadBtnClicked = true;
+        }
+      }
+      if (!loadBtnClicked) {
+        const textBtn = findButtonByText(
+          document,
+          /load older|load earlier|show earlier|show older|view older|previous messages/i
+        );
+        if (textBtn) {
+          console.log(`[Chat2PDF] buttons clicked: load earlier via text "${textBtn.textContent?.trim()}"`);
+          textBtn.click();
+          loadBtnClicked = true;
+        }
       }
 
       // Scroll up by viewport step
@@ -288,6 +359,11 @@ export async function collectFullConversation(
 
       const batch = extractVisibleTurns(selectors);
       recordMessages(batch);
+
+      const batchDelta = messageMap.size - lastSize;
+      console.log(
+        `[Chat2PDF] Round ${round}: count per round=${batch.length} (new=${batchDelta}), total=${messageMap.size}, scrollTop=${scrollContainer.scrollTop}, time=${Date.now() - startTime}ms`
+      );
 
       if (messageMap.size === lastSize) {
         consecutiveStableRounds++;
@@ -306,6 +382,7 @@ export async function collectFullConversation(
     }
 
     // Scroll back down in steps to ensure bottom-most items are fully captured
+    console.log(`[Chat2PDF] Scrolling back down to finalize capture...`);
     scrollContainer.scrollTop = scrollContainer.scrollHeight;
     await new Promise((resolve) => setTimeout(resolve, 300));
     recordMessages(extractVisibleTurns(selectors));
@@ -315,6 +392,8 @@ export async function collectFullConversation(
   }
 
   activeCancellationToken = null;
+  const elapsed = Date.now() - startTime;
+  console.log(`[Chat2PDF] Extraction finished in ${elapsed}ms: rounds=${round}, total messages=${messageMap.size}`);
 
   // Final ordered message list
   const finalMessages = orderedIds.map((id) => messageMap.get(id)!);
@@ -334,7 +413,7 @@ export function extractConversation(): ExtractedConversation {
 
   let title = document.title || 'Exported Chat';
   if (selectors?.chatTitle) {
-    const titleEl = document.querySelector(selectors.chatTitle);
+    const titleEl = safeQuerySelector(document, selectors.chatTitle);
     if (titleEl && titleEl.textContent) {
       title = titleEl.textContent.trim();
     }
@@ -355,6 +434,7 @@ if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage)
         const result = extractConversation();
         sendResponse({ success: true, data: result });
       } catch (err: any) {
+        console.error('[Chat2PDF] EXTRACT_CHAT error:', err);
         sendResponse({ success: false, error: err?.message || 'Extraction failed' });
       }
       return true;
@@ -370,6 +450,7 @@ if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage)
           sendResponse({ success: true, data: result });
         })
         .catch((err: any) => {
+          console.error('[Chat2PDF] EXTRACT_FULL_CHAT error:', err);
           sendResponse({ success: false, error: err?.message || 'Full extraction failed' });
         });
       return true;
