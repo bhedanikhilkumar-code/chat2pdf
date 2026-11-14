@@ -33,6 +33,8 @@ This document tracks all project requirements, their verification methods, imple
 | **Preview Fidelity** | `tests/preview_fidelity.test.ts` | Responsive preview at 375/768/1280px in light/dark; 0 horizontal overflow | **PASS** |
 | **Export Quality** | `tests/export_quality.test.ts` | All 10 formats verified with Hindi, emoji, tables, code, watermarks | **PASS** |
 | **A11y & Responsive** | `tests/a11y_responsive.test.ts` | 320–1440px layouts, touch targets >= 44px, axe-core WCAG 2.1 AA | **PASS** |
+| **Visual Export Audit** | `tests/export_visual_audit.test.ts` | Visual inspection of PDF, PNG, JPG, Cards, Handwriting in Light/Dark | **PASS** |
+| **Handwriting Multipage** | `tests/handwriting_multipage.test.ts` | 12-page chat per-page JPG zip, margins, Hindi, watermark on every page | **PASS** |
 | **Download Matrix** | `scripts/test-downloads.mjs` | 10 Formats x (Web, Extension): 20/20 valid file downloads | **PASS** |
 
 ---
