@@ -46,7 +46,7 @@ const popupHtmlContent = `<!DOCTYPE html>
 </body>
 </html>`;
 
-fs.writeFileSync(path.join(popupTargetDir, 'popup.html'), popupHtmlContent);
+fs.writeFileSync(path.join(popupTargetDir, 'popup.html'), popupHtmlContent, 'utf8');
 
 // Copy web build to web/
 const webTargetDir = path.join(distDir, 'web');
@@ -94,21 +94,41 @@ if (fs.existsSync(themeInitSrc) && !fs.existsSync(path.join(webTargetDir, 'theme
   fs.copyFileSync(themeInitSrc, path.join(webTargetDir, 'theme-init.js'));
 }
 
-// Ensure all extension entrypoints are strictly ASCII-safe (Chromium rejects raw non-ASCII in content scripts)
-const scriptsToSanitize = [
-  path.join(distDir, 'content', 'extractor.js'),
-  path.join(distDir, 'popup', 'popup.js'),
-  path.join(distDir, 'background', 'service-worker.js'),
-];
+/**
+ * Robust UTF-8 / ASCII sanitizer:
+ * Windows Chromium content script parser requires strict UTF-8 with zero BOM
+ * and rejects raw non-ASCII bytes in content script files when running on certain system locales.
+ * Converting all characters >= 128 to \\uXXXX guarantees 100% valid 7-bit ASCII
+ * (which is universally valid UTF-8 without byte-order ambiguity).
+ */
+function sanitizeFileToAsciiSafeUtf8(filePath) {
+  if (!fs.existsSync(filePath)) return;
+  const raw = fs.readFileSync(filePath, 'utf8');
+  let sanitized = '';
+  for (let i = 0; i < raw.length; i++) {
+    const code = raw.charCodeAt(i);
+    if (code >= 128) {
+      sanitized += '\\u' + ('0000' + code.toString(16)).slice(-4);
+    } else {
+      sanitized += raw[i];
+    }
+  }
+  fs.writeFileSync(filePath, sanitized, 'utf8');
+}
 
-for (const scriptPath of scriptsToSanitize) {
-  if (fs.existsSync(scriptPath)) {
-    const raw = fs.readFileSync(scriptPath, 'utf8');
-    const sanitized = raw.replace(/[\u0080-\uffff]/g, (ch) => {
-      return '\\u' + ('0000' + ch.charCodeAt(0).toString(16)).slice(-4);
-    });
-    fs.writeFileSync(scriptPath, sanitized, 'utf8');
+function recursivelySanitizeJs(dir) {
+  if (!fs.existsSync(dir)) return;
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      recursivelySanitizeJs(fullPath);
+    } else if (entry.name.endsWith('.js') || entry.name.endsWith('.mjs')) {
+      sanitizeFileToAsciiSafeUtf8(fullPath);
+    }
   }
 }
 
-console.log('Extension bundle finalized successfully in dist-extension/ from ' + sourceDir);
+recursivelySanitizeJs(distDir);
+
+console.log('Extension bundle finalized successfully in dist-extension/ with UTF-8 ASCII-safe encoding.');

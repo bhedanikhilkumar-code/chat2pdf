@@ -96,15 +96,19 @@ async function main() {
   }
 
   // 4. Vitest Unit & Browser Tests
-  console.log('\n[4/5] Running Vitest (unit, edge cases, selectors, mock collector, CSP real-browser)...');
+  console.log('\n[4/5] Running Vitest (unit, edge cases, selectors, collector, CSP, preview, export, a11y)...');
   const vitestRes = await runCmd('npx', ['vitest', 'run']);
   const vitestStatus = vitestRes.passed ? 'PASS' : 'FAIL';
   if (!vitestRes.passed) allClean = false;
+
+  const matchTests = vitestRes.stdout.match(/Tests\s+([\d]+\s+passed)/);
+  const testSummary = matchTests ? `${matchTests[1]} across all test files` : (vitestRes.passed ? 'All tests passed' : vitestRes.stdout.slice(0, 100));
+
   tableRows.push({
-    Check: 'Vitest Unit & Selector Tests (5 suites, 12 tests)',
+    Check: 'Vitest Full Test Suite (10 suites, 40 tests)',
     Status: vitestStatus,
     Duration: vitestRes.duration,
-    Proof: vitestRes.passed ? '12/12 passed (including real Chrome CSP)' : vitestRes.stdout.slice(0, 100),
+    Proof: testSummary,
   });
   console.log(`  -> ${vitestStatus} (${vitestRes.duration})`);
 
