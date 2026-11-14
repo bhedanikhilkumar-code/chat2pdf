@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { chromium } from 'playwright';
 import path from 'path';
 
-describe('Real DOM Structure Fixtures Extraction Verification', () => {
-  it('extracts all 30 messages from claude.html fixture with attachments, code, table, and list', async () => {
+describe('Synthetic DOM Structure Fixtures Extraction Verification', () => {
+  it('extracts all 30 messages from claude.html synthetic fixture with attachments, code, table, and list', async () => {
     const browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
-    const filePath = 'file:///' + path.resolve('tests/fixtures/claude.html').replace(/\\/g, '/');
+    const filePath = 'file:///' + path.resolve('tests/synthetic/claude.html').replace(/\\/g, '/');
     await page.goto(filePath);
 
     // Run extraction in the page context using the updated Claude selectors
@@ -89,10 +89,10 @@ describe('Real DOM Structure Fixtures Extraction Verification', () => {
     expect(result.messages[5].hasList).toBe(true);
   });
 
-  it('extracts all 30 messages from chatgpt.html fixture with attachments, code, table, and list', async () => {
+  it('extracts all 30 messages from chatgpt.html synthetic fixture with attachments, code, table, and list', async () => {
     const browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
-    const filePath = 'file:///' + path.resolve('tests/fixtures/chatgpt.html').replace(/\\/g, '/');
+    const filePath = 'file:///' + path.resolve('tests/synthetic/chatgpt.html').replace(/\\/g, '/');
     await page.goto(filePath);
 
     const result = await page.evaluate(() => {
@@ -152,10 +152,10 @@ describe('Real DOM Structure Fixtures Extraction Verification', () => {
     expect(result.messages[5].hasList).toBe(true);
   });
 
-  it('extracts all 30 messages from gemini.html fixture with attachments, code, table, and list', async () => {
+  it('extracts all 30 messages from gemini.html synthetic fixture with attachments, code, table, and list', async () => {
     const browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
-    const filePath = 'file:///' + path.resolve('tests/fixtures/gemini.html').replace(/\\/g, '/');
+    const filePath = 'file:///' + path.resolve('tests/synthetic/gemini.html').replace(/\\/g, '/');
     await page.goto(filePath);
 
     const result = await page.evaluate(() => {

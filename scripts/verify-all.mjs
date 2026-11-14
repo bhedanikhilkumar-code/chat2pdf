@@ -99,7 +99,10 @@ async function main() {
   console.log('\n[4/5] Running Vitest (unit, edge cases, selectors, collector, CSP, preview, export, a11y)...');
   const vitestRes = await runCmd('npx', ['vitest', 'run']);
   const vitestStatus = vitestRes.passed ? 'PASS' : 'FAIL';
-  if (!vitestRes.passed) allClean = false;
+  if (!vitestRes.passed) {
+    allClean = false;
+    console.error('Vitest Error Output:\n', vitestRes.stderr || vitestRes.stdout);
+  }
 
   const matchTests = vitestRes.stdout.match(/Tests\s+([\d]+\s+passed)/);
   const testSummary = matchTests ? `${matchTests[1]} across all test files` : (vitestRes.passed ? 'All tests passed' : vitestRes.stdout.slice(0, 100));

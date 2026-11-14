@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-const FIXTURES_DIR = path.resolve('tests/fixtures');
+const FIXTURES_DIR = path.resolve('tests/synthetic');
 if (!fs.existsSync(FIXTURES_DIR)) {
   fs.mkdirSync(FIXTURES_DIR, { recursive: true });
 }
