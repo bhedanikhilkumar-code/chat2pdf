@@ -3,19 +3,7 @@ import type { Conversation, ExportOptions } from '../parser/types';
 import { filterMessages } from '../parser/filters';
 import { WATERMARK_TEXT } from '../branding';
 import { downloadBlob } from './downloadHelper';
-
-const COLORS = {
-  titleBg: '0f172a',
-  titleText: 'ffffff',
-  userBg: 'f0fdf4',
-  userLabel: '15803d',
-  assistantBg: 'f8fafc',
-  assistantLabel: '0369a1',
-  systemBg: 'f1f5f9',
-  systemLabel: '475569',
-  bodyText: '1e293b',
-  watermark: '94a3b8',
-};
+import { resolveTheme } from '../theme/resolveTheme';
 
 function splitTextIntoChunks(text: string, maxLen = 700): string[] {
   if (text.length <= maxLen) return [text];
@@ -40,13 +28,32 @@ export async function exportPptx(
   options: ExportOptions
 ): Promise<void> {
   const messages = filterMessages(conversation.messages, options.filterMode);
+  const resolved = resolveTheme(conversation.themeSnapshot, options.pageStyle, conversation.source);
+  const isDark = resolved.mode === 'dark';
+
+  const COLORS = {
+    titleBg: isDark ? resolved.pageBackground.replace('#', '') : '0f172a',
+    titleText: isDark ? resolved.textColor.replace('#', '') : 'ffffff',
+    userBg: isDark ? resolved.userBubbleBackground.replace('#', '') : 'f0fdf4',
+    userLabel: isDark ? '34d399' : '15803d',
+    userBorder: isDark ? resolved.borderColor.replace('#', '') : 'bbf7d0',
+    assistantBg: isDark ? resolved.codeBlockBackground.replace('#', '') : 'f8fafc',
+    assistantLabel: isDark ? '38bdf8' : '0369a1',
+    assistantBorder: isDark ? resolved.borderColor.replace('#', '') : 'bae6fd',
+    systemBg: isDark ? '18181b' : 'f1f5f9',
+    systemLabel: isDark ? 'a1a1aa' : '475569',
+    bodyText: isDark ? resolved.textColor.replace('#', '') : '1e293b',
+    watermark: isDark ? resolved.mutedText.replace('#', '') : '94a3b8',
+    slideBg: isDark ? resolved.pageBackground.replace('#', '') : 'ffffff',
+  };
+
   const pptx = new PptxGenJS();
   pptx.layout = 'LAYOUT_WIDE';
 
   // Define master slide layout with bottom-right watermark
   pptx.defineSlideMaster({
     title: 'MASTER_SLIDE',
-    background: { color: 'ffffff' },
+    background: { color: COLORS.slideBg },
     objects: [
       {
         text: {
@@ -165,7 +172,7 @@ export async function exportPptx(
           w: 11.7,
           h: 1.6,
           fill: { color: COLORS.userBg },
-          line: { color: 'bbf7d0', width: 1 },
+          line: { color: COLORS.userBorder, width: 1 },
           rectRadius: 0.08,
         });
         const userText = userMsg.attachments && userMsg.attachments.length > 0
@@ -201,7 +208,7 @@ export async function exportPptx(
           w: 11.7,
           h: 3.9,
           fill: { color: COLORS.assistantBg },
-          line: { color: 'bae6fd', width: 1 },
+          line: { color: COLORS.assistantBorder, width: 1 },
           rectRadius: 0.08,
         });
 
@@ -227,7 +234,7 @@ export async function exportPptx(
       const isUser = userMsg.role === 'user';
       const labelColor = isUser ? COLORS.userLabel : COLORS.assistantLabel;
       const bgColor = isUser ? COLORS.userBg : COLORS.assistantBg;
-      const borderColor = isUser ? 'bbf7d0' : 'bae6fd';
+      const borderColor = isUser ? COLORS.userBorder : COLORS.assistantBorder;
 
       slide.addText(`Slide ${slideNum}`, {
         x: 0.8,

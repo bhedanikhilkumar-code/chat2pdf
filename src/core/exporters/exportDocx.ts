@@ -17,17 +17,18 @@ import type { Conversation, ExportOptions } from '../parser/types';
 import { filterMessages } from '../parser/filters';
 import { WATERMARK_TEXT } from '../branding';
 import { downloadBlob } from './downloadHelper';
+import { resolveTheme } from '../theme/resolveTheme';
 
 const ROLE_CONFIG: Record<
   string,
-  { label: string; color: string; emoji: string }
+  { label: string; lightColor: string; darkColor: string; emoji: string }
 > = {
-  user: { label: 'User', color: '15803D', emoji: '👤' },
-  assistant: { label: 'Assistant', color: '0369A1', emoji: '🤖' },
-  system: { label: 'System', color: '475569', emoji: '⚙' },
+  user: { label: 'User', lightColor: '15803D', darkColor: '34D399', emoji: '👤' },
+  assistant: { label: 'Assistant', lightColor: '0369A1', darkColor: '38BDF8', emoji: '🤖' },
+  system: { label: 'System', lightColor: '475569', darkColor: 'A1A1AA', emoji: '⚙' },
 };
 
-function parseMarkdownTable(tableLines: string[]): Table | null {
+function parseMarkdownTable(tableLines: string[], isDark: boolean, textColor: string): Table | null {
   if (tableLines.length < 2) return null;
 
   const rows: TableRow[] = [];
@@ -55,11 +56,12 @@ function parseMarkdownTable(tableLines: string[]): Table | null {
                   bold: isHeader,
                   font: 'Calibri',
                   size: 20,
+                  color: textColor,
                 }),
               ],
             }),
           ],
-          shading: isHeader ? { fill: 'F1F5F9' } : undefined,
+          shading: isHeader ? { fill: isDark ? '2A2A2A' : 'F1F5F9' } : undefined,
           margins: { top: 120, bottom: 120, left: 160, right: 160 },
         })
     );
@@ -75,7 +77,12 @@ function parseMarkdownTable(tableLines: string[]): Table | null {
   });
 }
 
-function buildContentElements(content: string): (Paragraph | Table)[] {
+function buildContentElements(
+  content: string,
+  textColor: string,
+  codeBg: string,
+  isDark: boolean
+): (Paragraph | Table)[] {
   const elements: (Paragraph | Table)[] = [];
   const lines = content.split('\n');
   let inCodeBlock = false;
@@ -100,11 +107,11 @@ function buildContentElements(content: string): (Paragraph | Table)[] {
                   text: cLine,
                   font: 'Consolas',
                   size: 19,
-                  color: 'F8FAFC',
+                  color: isDark ? 'F8FAFC' : '1E293B',
                 }),
               ],
               spacing: { before: 20, after: 20 },
-              shading: { fill: '1E293B' },
+              shading: { fill: codeBg },
               indent: { left: 240, right: 240 },
             })
           );
@@ -124,7 +131,7 @@ function buildContentElements(content: string): (Paragraph | Table)[] {
       continue;
     } else if (inTable) {
       inTable = false;
-      const tbl = parseMarkdownTable(tableLines);
+      const tbl = parseMarkdownTable(tableLines, isDark, textColor);
       if (tbl) elements.push(tbl);
       tableLines = [];
     }
@@ -143,10 +150,10 @@ function buildContentElements(content: string): (Paragraph | Table)[] {
               text: line,
               font: 'Calibri',
               size: 22,
-              color: '1E293B',
+              color: textColor,
             }),
           ],
-          spacing: { before: 50, after: 50 },
+          spacing: { before: 40, after: 40 },
           indent,
         })
       );
@@ -154,7 +161,7 @@ function buildContentElements(content: string): (Paragraph | Table)[] {
   }
 
   if (inTable && tableLines.length > 0) {
-    const tbl = parseMarkdownTable(tableLines);
+    const tbl = parseMarkdownTable(tableLines, isDark, textColor);
     if (tbl) elements.push(tbl);
   }
 
@@ -166,6 +173,14 @@ export async function exportDocx(
   options: ExportOptions
 ): Promise<void> {
   const messages = filterMessages(conversation.messages, options.filterMode);
+  const resolved = resolveTheme(conversation.themeSnapshot, options.pageStyle, conversation.source);
+  const isDark = resolved.mode === 'dark';
+  const textColor = isDark ? resolved.textColor.replace('#', '') : '1E293B';
+  const bgColor = isDark ? resolved.pageBackground.replace('#', '') : 'FFFFFF';
+  const mutedColor = isDark ? resolved.mutedText.replace('#', '') : '64748B';
+  const codeBg = isDark ? resolved.codeBlockBackground.replace('#', '') : 'F1F5F9';
+  const borderColor = isDark ? resolved.borderColor.replace('#', '') : 'E2E8F0';
+
   const sections: (Paragraph | Table)[] = [];
 
   if (options.includeTitle !== false && conversation.title) {
@@ -177,7 +192,7 @@ export async function exportDocx(
             bold: true,
             font: 'Calibri',
             size: 38,
-            color: '0F172A',
+            color: textColor,
           }),
         ],
         heading: HeadingLevel.TITLE,
@@ -192,7 +207,7 @@ export async function exportDocx(
             text: `Source: ${conversation.source}  |  Exported: ${new Date(conversation.exportedAt).toLocaleDateString()}`,
             font: 'Calibri',
             size: 18,
-            color: '64748B',
+            color: mutedColor,
             italics: true,
           }),
         ],
@@ -209,7 +224,7 @@ export async function exportDocx(
             text: 'No messages to export.',
             font: 'Calibri',
             size: 22,
-            color: '94A3B8',
+            color: mutedColor,
             italics: true,
           }),
         ],
@@ -219,6 +234,7 @@ export async function exportDocx(
 
   for (const msg of messages) {
     const config = ROLE_CONFIG[msg.role] || ROLE_CONFIG.system;
+    const roleColor = isDark ? config.darkColor : config.lightColor;
 
     sections.push(
       new Paragraph({
@@ -228,7 +244,7 @@ export async function exportDocx(
             bold: true,
             font: 'Calibri',
             size: 26,
-            color: config.color,
+            color: roleColor,
           }),
         ],
         heading: HeadingLevel.HEADING_2,
@@ -236,7 +252,7 @@ export async function exportDocx(
       })
     );
 
-    sections.push(...buildContentElements(msg.content));
+    sections.push(...buildContentElements(msg.content, textColor, codeBg, isDark));
 
     if (msg.attachments && msg.attachments.length > 0) {
       sections.push(
@@ -246,7 +262,7 @@ export async function exportDocx(
               text: '📎 Attachments: ' + msg.attachments.map((a) => a.name + (a.size ? ` (${a.size})` : '')).join(', '),
               font: 'Calibri',
               size: 20,
-              color: '475569',
+              color: mutedColor,
               bold: true,
             }),
           ],
@@ -260,7 +276,7 @@ export async function exportDocx(
         spacing: { before: 140, after: 140 },
         border: {
           bottom: {
-            color: 'E2E8F0',
+            color: borderColor,
             space: 1,
             style: BorderStyle.SINGLE,
             size: 6,
@@ -271,6 +287,9 @@ export async function exportDocx(
   }
 
   const doc = new Document({
+    background: {
+      color: bgColor,
+    },
     sections: [
       {
         properties: {
@@ -293,19 +312,19 @@ export async function exportDocx(
                     text: 'Page ',
                     font: 'Calibri',
                     size: 18,
-                    color: '94A3B8',
+                    color: mutedColor,
                   }),
                   new TextRun({
                     children: [PageNumber.CURRENT],
                     font: 'Calibri',
                     size: 18,
-                    color: '94A3B8',
+                    color: mutedColor,
                   }),
                   new TextRun({
                     text: `   •   ${WATERMARK_TEXT}`,
                     font: 'Calibri',
                     size: 18,
-                    color: '94A3B8',
+                    color: mutedColor,
                   }),
                 ],
               }),
