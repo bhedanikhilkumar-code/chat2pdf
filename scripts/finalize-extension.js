@@ -116,19 +116,11 @@ function sanitizeFileToAsciiSafeUtf8(filePath) {
   fs.writeFileSync(filePath, sanitized, 'utf8');
 }
 
-function recursivelySanitizeJs(dir) {
-  if (!fs.existsSync(dir)) return;
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      recursivelySanitizeJs(fullPath);
-    } else if (entry.name.endsWith('.js') || entry.name.endsWith('.mjs')) {
-      sanitizeFileToAsciiSafeUtf8(fullPath);
-    }
-  }
-}
+// Root cause of "extractor.js isn't UTF-8 encoded":
+// KaTeX Lexer embeds Unicode non-character 0xFFFF (\uFFFF) into a regex.
+// Chromium's base::IsStringUTF8 explicitly rejects 0xFFFF via base::IsValidCharacter().
+// Vite build now configures terserOptions.format.ascii_only: true in vite.config.ext.ts,
+// ensuring bundler outputs ASCII-safe UTF-8 without non-character byte sequences.
+// Escaping workaround is therefore removed.
 
-recursivelySanitizeJs(distDir);
-
-console.log('Extension bundle finalized successfully in dist-extension/ with UTF-8 ASCII-safe encoding.');
+console.log('Extension bundle finalized successfully in dist-extension/.');

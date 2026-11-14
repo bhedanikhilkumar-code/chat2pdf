@@ -11,6 +11,12 @@ export default defineConfig({
   build: {
     outDir: 'dist-extension',
     emptyOutDir: true,
+    minify: 'terser',
+    terserOptions: {
+      format: {
+        ascii_only: true,
+      },
+    },
     rollupOptions: {
       input: {
         popup: path.resolve(__dirname, 'src/extension/popup/popup.html'),
