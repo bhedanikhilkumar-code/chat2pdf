@@ -129,6 +129,7 @@ const Popup: React.FC = () => {
                 messages,
                 title,
                 source,
+                themeSnapshot: response.data.themeSnapshot,
               },
             },
             () => {

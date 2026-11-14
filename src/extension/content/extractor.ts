@@ -2,7 +2,7 @@
 import { gfm } from 'turndown-plugin-gfm';
 import { getSelectorsForHost } from './selectors/index';
 import { cleanText } from '../../core/parser/cleaners';
-import type { Attachment, SiteSelectors } from '../../core/parser/types';
+import type { Attachment, SiteSelectors, ThemeSnapshot } from '../../core/parser/types';
 import {
   safeQuerySelector,
   safeQuerySelectorAll,
@@ -10,11 +10,14 @@ import {
   findButtonByText,
   findButtonsByText,
 } from './dom-utils';
+import { extractThemeSnapshot } from './theme-snapshot';
+import { processRichMessage } from './rich-content';
 
 export interface ExtractedMessage {
   id?: string;
   role: 'user' | 'assistant';
   content: string;
+  htmlContent?: string;
   attachments?: Attachment[];
 }
 
@@ -22,6 +25,7 @@ export interface ExtractedConversation {
   title: string;
   source: string;
   messages: ExtractedMessage[];
+  themeSnapshot?: ThemeSnapshot;
 }
 
 // Global cancellation token for async full-chat scroll operations
@@ -68,33 +72,18 @@ function createTurndown(): TurndownService {
 
 const turndown = createTurndown();
 
-function cleanNodeToMarkdown(node: HTMLElement, junkSelectors: string[]): string {
-  const cloned = node.cloneNode(true) as HTMLElement;
-
-  if (junkSelectors && junkSelectors.length > 0) {
-    junkSelectors.forEach((junkSel) => {
-      try {
-        const junkEls = safeQuerySelectorAll(cloned, junkSel);
-        junkEls.forEach((el) => el.remove());
-      } catch (e) {
-        console.warn(`[Chat2PDF] selector failed: ${junkSel}`, e);
-      }
-    });
-  }
-
-  const buttons = safeQuerySelectorAll(
-    cloned,
-    'button, .copy-code-button, [aria-label*="Copy"]'
-  );
-  buttons.forEach((el) => el.remove());
-
+function cleanNodeToMarkdownAndHtml(
+  node: HTMLElement,
+  junkSelectors: string[]
+): { html: string; markdown: string } {
+  const { html, rawText } = processRichMessage(node, junkSelectors);
+  let md = '';
   try {
-    const md = turndown.turndown(cloned.innerHTML);
-    return cleanText(md);
+    md = cleanText(turndown.turndown(html));
   } catch (err) {
-    const text = cloned.innerText || cloned.textContent || '';
-    return cleanText(text);
+    md = cleanText(rawText);
   }
+  return { html, markdown: md };
 }
 
 // Extract attachments from user turns
@@ -164,20 +153,21 @@ export function extractVisibleTurns(selectors?: SiteSelectors): ExtractedMessage
         const role: 'user' | 'assistant' = isUser ? 'user' : 'assistant';
 
         const contentEl = safeQuerySelector<HTMLElement>(turn, selectors.messageContent) || turn;
-        const cleaned = cleanNodeToMarkdown(contentEl, junk);
+        const { html, markdown } = cleanNodeToMarkdownAndHtml(contentEl, junk);
 
-        if (cleaned) {
+        if (markdown || html) {
           const id =
             turn.getAttribute('data-message-id') ||
             turn.getAttribute('data-testid') ||
-            hashMessage(role, cleaned);
+            hashMessage(role, markdown || html);
 
           const attachments = isUser ? extractAttachments(turn, selectors) : undefined;
 
           extracted.push({
             id,
             role,
-            content: cleaned,
+            content: markdown,
+            htmlContent: html,
             attachments: attachments && attachments.length > 0 ? attachments : undefined,
           });
         }
@@ -199,11 +189,11 @@ export function extractVisibleTurns(selectors?: SiteSelectors): ExtractedMessage
 
     const contentEl =
       safeQuerySelector<HTMLElement>(turn, '.markdown, .prose, [class*=content]') || turn;
-    const cleaned = cleanNodeToMarkdown(contentEl, defaultJunk);
+    const { html, markdown } = cleanNodeToMarkdownAndHtml(contentEl, defaultJunk);
 
-    if (cleaned && cleaned.length > 3) {
-      const id = turn.getAttribute('data-message-id') || hashMessage(role, cleaned);
-      extracted.push({ id, role, content: cleaned });
+    if ((markdown && markdown.length > 3) || (html && html.length > 5)) {
+      const id = turn.getAttribute('data-message-id') || hashMessage(role, markdown || html);
+      extracted.push({ id, role, content: markdown, htmlContent: html });
     }
   });
 
@@ -259,7 +249,7 @@ export function expandCollapsedContent(selectors?: SiteSelectors): number {
 
 /**
  * Collect full conversation by stepping upwards through scroll container,
- * resolving virtualized message nodes, and merging batches in chronological order.
+ * resolving virtualized message nodes, capturing rich HTML and theme snapshots.
  */
 export async function collectFullConversation(
   onProgress?: (count: number, status: string) => void
@@ -269,6 +259,8 @@ export async function collectFullConversation(
   const selectors = getSelectorsForHost(hostname) || getSelectorsForHost(window.location.hostname) || undefined;
 
   console.log(`[Chat2PDF] Starting full-chat extraction on host: ${hostname}`);
+  const themeSnapshot = extractThemeSnapshot(hostname);
+  console.log('[Chat2PDF] Theme snapshot captured:', themeSnapshot);
 
   let title = document.title || 'Exported Chat';
   if (selectors?.chatTitle) {
@@ -436,6 +428,7 @@ export async function collectFullConversation(
     title,
     source: hostname,
     messages: finalMessages,
+    themeSnapshot,
   };
 }
 
@@ -457,6 +450,7 @@ export function extractConversation(): ExtractedConversation {
     title,
     source: hostname,
     messages: turns,
+    themeSnapshot: extractThemeSnapshot(hostname),
   };
 }
 

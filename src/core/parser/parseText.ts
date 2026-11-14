@@ -240,19 +240,22 @@ function extractTitle(text: string): string {
 }
 
 export function parseExtracted(
-  data: { role: 'user' | 'assistant'; content: string; attachments?: Attachment[] }[],
+  data: { role: 'user' | 'assistant'; content: string; htmlContent?: string; attachments?: Attachment[] }[],
   source: string,
-  title?: string
+  title?: string,
+  themeSnapshot?: import('./types').ThemeSnapshot
 ): Conversation {
   return {
     title: title || 'Exported Chat',
     source,
+    themeSnapshot,
     messages: data.map((m, i) => {
       const { content, attachments: parsedAtts } = extractInlineAttachments(m.content);
       const combinedAttachments = [...(m.attachments || []), ...parsedAtts];
       return {
         role: m.role,
         content: cleanText(content),
+        htmlContent: m.htmlContent,
         index: i,
         attachments: combinedAttachments.length > 0 ? combinedAttachments : undefined,
       };

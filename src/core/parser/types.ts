@@ -8,9 +8,25 @@ export interface Attachment {
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
+  htmlContent?: string;
   index: number;
   timestamp?: string;
   attachments?: Attachment[];
+}
+
+export type ThemeMode = 'dark' | 'light';
+
+export interface ThemeSnapshot {
+  mode: ThemeMode;
+  pageBackground: string;
+  textColor: string;
+  mutedText: string;
+  borderColor: string;
+  userBubbleBackground: string;
+  userBubbleText: string;
+  codeBlockBackground: string;
+  linkColor: string;
+  source: 'chatgpt' | 'claude' | 'gemini' | 'perplexity' | 'groq' | 'generic';
 }
 
 export interface Conversation {
@@ -18,6 +34,7 @@ export interface Conversation {
   source: string; // chatgpt, gemini, claude, perplexity, groq, unknown
   messages: ChatMessage[];
   exportedAt: string;
+  themeSnapshot?: ThemeSnapshot;
 }
 
 export type ExportFormat = 'pdf' | 'pptx' | 'csv' | 'txt' | 'md' | 'jpg' | 'png' | 'docx' | 'handwriting';

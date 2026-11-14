@@ -29,7 +29,8 @@ export default function App() {
               const conv = parseExtracted(
                 data.messages,
                 data.source || 'extension',
-                data.title
+                data.title,
+                data.themeSnapshot
               );
               setConversation(conv);
               setCurrentStep(1);
@@ -47,7 +48,8 @@ export default function App() {
                 const conv = parseExtracted(
                   parsedData.messages,
                   parsedData.source || 'extension',
-                  parsedData.title
+                  parsedData.title,
+                  parsedData.themeSnapshot
                 );
                 setConversation(conv);
                 setCurrentStep(1);
