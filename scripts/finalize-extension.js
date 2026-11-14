@@ -94,4 +94,21 @@ if (fs.existsSync(themeInitSrc) && !fs.existsSync(path.join(webTargetDir, 'theme
   fs.copyFileSync(themeInitSrc, path.join(webTargetDir, 'theme-init.js'));
 }
 
+// Ensure all extension entrypoints are strictly ASCII-safe (Chromium rejects raw non-ASCII in content scripts)
+const scriptsToSanitize = [
+  path.join(distDir, 'content', 'extractor.js'),
+  path.join(distDir, 'popup', 'popup.js'),
+  path.join(distDir, 'background', 'service-worker.js'),
+];
+
+for (const scriptPath of scriptsToSanitize) {
+  if (fs.existsSync(scriptPath)) {
+    const raw = fs.readFileSync(scriptPath, 'utf8');
+    const sanitized = raw.replace(/[\u0080-\uffff]/g, (ch) => {
+      return '\\u' + ('0000' + ch.charCodeAt(0).toString(16)).slice(-4);
+    });
+    fs.writeFileSync(scriptPath, sanitized, 'utf8');
+  }
+}
+
 console.log('Extension bundle finalized successfully in dist-extension/ from ' + sourceDir);
