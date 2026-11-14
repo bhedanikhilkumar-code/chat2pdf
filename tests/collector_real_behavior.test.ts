@@ -114,21 +114,21 @@ describe('Virtualization-Aware Collector Real Behavior Verification', () => {
         const container = findContainer();
         if (!container) throw new Error('Scroll container not found');
 
-        // Settle waiter with MutationObserver
+        // Settle waiter with DOM mutation listener
         function waitForSettle(node, minWait = 15, maxWait = 50) {
           return new Promise((resolve) => {
             let timer = null;
-            let observer = null;
+            let watcher = null;
             const clean = () => {
               if (timer) clearTimeout(timer);
-              if (observer) observer.disconnect();
+              if (watcher) watcher.disconnect();
               resolve();
             };
-            observer = new MutationObserver(() => {
+            watcher = new MutationObserver(() => {
               if (timer) clearTimeout(timer);
               timer = setTimeout(clean, minWait);
             });
-            observer.observe(node, { childList: true, subtree: true, characterData: true });
+            watcher.observe(node, { childList: true, subtree: true, characterData: true });
             timer = setTimeout(clean, minWait);
           });
         }

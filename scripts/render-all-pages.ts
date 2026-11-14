@@ -297,8 +297,45 @@ async function renderAll() {
     await page.close();
   }
 
-  // 3. HANDWRITING NOTES (Page 1)
-  {
+  // 3. HANDWRITING 12-PAGE NOTES (First: 01, Middle: 06, Last: 12)
+  const hwPagesData = [
+    {
+      pageNumber: 1,
+      totalPages: 12,
+      content: `
+        <p style="font-weight: bold; margin: 0 0 10px 0; font-size: 20px;">Distributed Systems &amp; Consensus Notes (Page 1 of 12)</p>
+        <p style="margin: 0 0 10px 0;">User: नमस्ते! Can you explain consensus algorithms in distributed systems? 🚀 💡</p>
+        <p style="margin: 0 0 10px 0;">Assistant: नमस्ते! यहाँ वितरित प्रणालियों (Distributed Systems) का संपूर्ण हस्तलिखित नोट्स सारांश है।</p>
+        <p style="margin: 0 0 10px 0;">• 1. Leader Election: Nodes become candidates and request votes across terms.</p>
+        <p style="margin: 0 0 10px 0;">• 2. Quorum: N/2 + 1 nodes must agree to commit state machine changes.</p>
+        <p style="margin: 0 0 10px 0;">• 3. Fault Tolerance: System continues operating without data loss despite partitions.</p>
+      `,
+    },
+    {
+      pageNumber: 6,
+      totalPages: 12,
+      content: `
+        <p style="font-weight: bold; margin: 0 0 10px 0; font-size: 20px;">Distributed Systems &amp; Consensus Notes (Page 6 of 12)</p>
+        <p style="margin: 0 0 10px 0;">User: Turn #14: क्या नोड विफलता के दौरान डेटा अखंडता बनी रहती है? 🔍 🛡️</p>
+        <p style="margin: 0 0 10px 0;">Assistant: हाँ, Raft और Paxos में जब तक कोरम (majority quorum) जीवित है, डेटा अखंडता 100% सुरक्षित रहती है।</p>
+        <p style="margin: 0 0 10px 0;">• 4. State Machine Replication: Deterministic execution ensures identical logs.</p>
+        <p style="margin: 0 0 10px 0;">• 5. Heartbeat Interval: Prevents false election triggers across busy networks.</p>
+      `,
+    },
+    {
+      pageNumber: 12,
+      totalPages: 12,
+      content: `
+        <p style="font-weight: bold; margin: 0 0 10px 0; font-size: 20px;">Distributed Systems &amp; Consensus Notes (Page 12 of 12)</p>
+        <p style="margin: 0 0 10px 0;">User: Turn #24: Production readiness checklist summary? 📝 🎉</p>
+        <p style="margin: 0 0 10px 0;">Assistant: अंतिम उत्पादन तत्परता सत्यापन पूर्ण हुआ। सभी वैश्विक क्षेत्र पूर्णतः सक्रिय हैं। 🚀</p>
+        <p style="margin: 0 0 10px 0;">• Quorum latency &lt; 45ms verified across multi-region clusters.</p>
+        <p style="margin: 0 0 10px 0;">• Dual-write WAL storage verified with zero drop rate.</p>
+      `,
+    },
+  ];
+
+  for (const hw of hwPagesData) {
     const page = await browser.newPage({ viewport: { width: 794, height: 1123 } });
     await page.setContent(`
       <!DOCTYPE html>
@@ -309,65 +346,126 @@ async function renderAll() {
           body { margin: 0; padding: 0; width: 794px; height: 1123px; background: #fffef9; font-family: cursive, sans-serif; position: relative; }
           .margin-line { position: absolute; top: 0; bottom: 0; left: 60px; width: 1.5px; background: #e8b4b8; }
           .content { position: absolute; left: 70px; right: 60px; top: 70px; bottom: 70px; color: #1a365d; font-size: 18px; line-height: 34px; word-break: break-word; }
-          .watermark { position: absolute; bottom: 25px; right: 60px; font-size: 13px; color: #8892b0; font-family: sans-serif; }
+          .page-num { position: absolute; bottom: 25px; left: 70px; font-size: 12px; color: #8892b0; font-family: sans-serif; }
+          .watermark { position: absolute; bottom: 25px; right: 60px; font-size: 13px; color: #8892b0; font-family: sans-serif; font-weight: 500; }
         </style>
       </head>
       <body>
         <div class="margin-line"></div>
         <div class="content">
-          <p style="font-weight: bold; margin: 0 0 10px 0; font-size: 20px;">Distributed Systems &amp; Consensus Notes</p>
-          <p style="margin: 0 0 10px 0;">User: नमस्ते! Can you explain consensus algorithms in distributed systems? 🚀 💡</p>
-          <p style="margin: 0 0 10px 0;">Assistant: नमस्ते! यहाँ वितरित प्रणालियों (Distributed Systems) का हस्तलिखित नोट्स सारांश है।</p>
-          <p style="margin: 0 0 10px 0;">• 1. Leader Election: Nodes become candidates and request votes.</p>
-          <p style="margin: 0 0 10px 0;">• 2. Quorum: N/2 + 1 nodes must agree to commit state changes.</p>
-          <p style="margin: 0 0 10px 0;">• 3. Fault Tolerance: System continues operating despite partition failure.</p>
+          ${hw.content}
         </div>
+        <div class="page-num">Page ${hw.pageNumber} of ${hw.totalPages}</div>
         <div class="watermark">${WATERMARK_TEXT}</div>
       </body>
       </html>
     `);
-    const hwPath = path.join(outputDir, 'handwriting-page-01.png');
+    const numStr = hw.pageNumber.toString().padStart(2, '0');
+    const hwPath = path.join(outputDir, `handwriting-page-${numStr}.png`);
     await page.screenshot({ path: hwPath });
     console.log(`Saved ${hwPath}`);
     await page.close();
   }
 
-  // 4. CARDS (Pages 1, 2, 3)
-  for (let cIdx = 1; cIdx <= 3; cIdx++) {
-    const page = await browser.newPage({ viewport: { width: 550, height: 380 } });
-    await page.setContent(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <style>
-          body { margin: 0; padding: 24px; background: #09090b; font-family: -apple-system, sans-serif; }
-          .card { background: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 20px; color: #f4f4f5; display: flex; flex-direction: column; justify-content: space-between; height: 310px; box-sizing: border-box; }
-          .header { font-size: 11px; font-weight: 700; color: #38bdf8; margin-bottom: 8px; }
-          .body { font-size: 13px; line-height: 1.5; color: #f4f4f5; }
-          .footer { border-top: 1px solid #27272a; padding-top: 10px; display: flex; justify-content: space-between; font-size: 10.5px; color: #71717a; }
-        </style>
-      </head>
-      <body>
-        <div class="card">
-          <div>
-            <div class="header">CARD ${cIdx} OF 3 - ${cIdx === 1 ? '👤 USER' : '🤖 ASSISTANT'}</div>
-            <div class="body">
-              ${cIdx === 1 ? 'नमस्ते! कैन यू एक्सप्लेन distributed systems architecture with real-world patterns? 🚀 💡 [Attachment: cluster-spec.yaml]' : cIdx === 2 ? 'यहाँ वितरित प्रणालियों (Distributed Systems) का मुख्य सारांश और सर्वसम्मति एल्गोरिदम है। ⚡ 🛡️' : 'अंतिम चेकलिस्ट: Cross-region latency &lt; 45ms, dual-write WAL, zero request drops. 🎉'}
+  // 4. RICH CARD SET (Table, Code block, Math formula, Long URL) IN LIGHT & DARK
+  const richCards = [
+    {
+      id: 'table',
+      title: 'Consensus Latency Matrix',
+      content: `
+        <table style="width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 11px;">
+          <thead>
+            <tr style="border-bottom: 2px solid #38bdf8;">
+              <th style="padding: 4px 6px; text-align: left;">Node</th>
+              <th style="padding: 4px 6px; text-align: left;">Ping</th>
+              <th style="padding: 4px 6px; text-align: left;">Quorum</th>
+              <th style="padding: 4px 6px; text-align: left;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="padding: 4px 6px;">Region-US</td><td style="padding: 4px 6px;">4ms</td><td style="padding: 4px 6px;">Active</td><td style="padding: 4px 6px;">Optimal ⚡</td></tr>
+            <tr><td style="padding: 4px 6px;">Region-EU</td><td style="padding: 4px 6px;">18ms</td><td style="padding: 4px 6px;">Active</td><td style="padding: 4px 6px;">Resilient 🛡️</td></tr>
+            <tr><td style="padding: 4px 6px;">Region-AP</td><td style="padding: 4px 6px;">32ms</td><td style="padding: 4px 6px;">Active</td><td style="padding: 4px 6px;">Online 💾</td></tr>
+          </tbody>
+        </table>
+      `,
+    },
+    {
+      id: 'code',
+      title: 'Python Quorum Verification Algorithm',
+      content: `
+        <pre style="margin: 4px 0 0 0; padding: 8px 10px; border-radius: 6px; font-family: monospace; font-size: 11px; line-height: 1.4; white-space: pre-wrap; word-break: break-all; background: rgba(0,0,0,0.25);"><code>def verify_quorum(nodes, threshold=0.67):
+    alive = [n for n in nodes if n.get("is_alive")]
+    return len(alive) / float(len(nodes)) >= threshold</code></pre>
+      `,
+    },
+    {
+      id: 'math',
+      title: 'Mathematical Convergence Formula',
+      content: `
+        <div style="padding: 12px; text-align: center; font-size: 14px;">
+          ${renderedFormulaHtml}
+        </div>
+      `,
+    },
+    {
+      id: 'url',
+      title: 'Disaster Recovery Documentation Link',
+      content: `
+        <p style="margin: 4px 0 0 0; font-size: 11px; word-break: break-all; overflow-wrap: anywhere; line-height: 1.5; color: #38bdf8;">
+          https://cloud.google.com/architecture/patterns-for-distributed-systems-resilience-and-disaster-recovery-in-multi-region-deployments-with-zero-data-loss-and-minimal-failover-rpo-rto
+        </p>
+      `,
+    },
+  ];
+
+  for (const style of ['dark', 'light'] as const) {
+    const isDark = style === 'dark';
+    const cardBg = isDark ? '#18181b' : '#ffffff';
+    const cardBorder = isDark ? '#27272a' : '#e5e7eb';
+    const cardText = isDark ? '#f4f4f5' : '#1f2937';
+    const cardMuted = isDark ? '#71717a' : '#94a3b8';
+
+    for (let c = 0; c < richCards.length; c++) {
+      const card = richCards[c];
+      const page = await browser.newPage({ viewport: { width: 550, height: 380 } });
+      await page.setContent(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            ${katexCss}
+            body { margin: 0; padding: 24px; background: ${isDark ? '#09090b' : '#f1f5f9'}; font-family: -apple-system, sans-serif; }
+            .card { background: ${cardBg}; border: 1px solid ${cardBorder}; border-radius: 12px; padding: 20px; color: ${cardText}; display: flex; flex-direction: column; justify-content: space-between; height: 310px; box-sizing: border-box; }
+            .header { font-size: 11px; font-weight: 700; color: ${isDark ? '#38bdf8' : '#0284c7'}; margin-bottom: 6px; }
+            .title { font-size: 13.5px; font-weight: 600; margin-bottom: 8px; }
+            .body { flex: 1; font-size: 12px; overflow: hidden; }
+            .footer { border-top: 1px solid ${cardBorder}; padding-top: 10px; display: flex; justify-content: space-between; font-size: 10.5px; color: ${cardMuted}; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <div>
+              <div class="header">CARD ${c + 1} OF 4 - ${style.toUpperCase()}</div>
+              <div class="title">${card.title}</div>
+              <div class="body">
+                ${card.content}
+              </div>
+            </div>
+            <div class="footer">
+              <span>Card ${c + 1} of 4</span>
+              <span style="font-weight: 500;">${WATERMARK_TEXT}</span>
             </div>
           </div>
-          <div class="footer">
-            <span>Card ${cIdx} of 3</span>
-            <span style="font-weight: 500;">${WATERMARK_TEXT}</span>
-          </div>
-        </div>
-      </body>
-      </html>
-    `);
-    const cardPath = path.join(outputDir, `card-dark-page-${cIdx}.png`);
-    await page.screenshot({ path: cardPath });
-    console.log(`Saved ${cardPath}`);
-    await page.close();
+        </body>
+        </html>
+      `);
+      const cardPath = path.join(outputDir, `card-rich-${style}-${card.id}.png`);
+      await page.screenshot({ path: cardPath });
+      console.log(`Saved ${cardPath}`);
+      await page.close();
+    }
   }
 
   await browser.close();

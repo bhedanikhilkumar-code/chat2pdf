@@ -360,6 +360,12 @@ describe('Visual Export Quality Audit (Task 1)', () => {
       await page.screenshot({ path: cardPath });
       expect(fs.existsSync(cardPath)).toBe(true);
 
+      // Verify Rich Cards (Table, Code, Math, URL)
+      for (const cardType of ['table', 'code', 'math', 'url']) {
+        const richCardPath = path.join(auditDir, `card-rich-${pageStyle}-${cardType}.png`);
+        expect(fs.existsSync(richCardPath)).toBe(true);
+      }
+
       await page.close();
     }
 
@@ -403,6 +409,12 @@ describe('Visual Export Quality Audit (Task 1)', () => {
 
     expect(fs.existsSync(hwPdfImg)).toBe(true);
     expect(fs.existsSync(hwJpgImg)).toBe(true);
+
+    // Verify 12-page handwriting artifacts (Page 01, 06, 12)
+    for (const pNum of ['01', '06', '12']) {
+      const pPath = path.join(auditDir, `handwriting-page-${pNum}.png`);
+      expect(fs.existsSync(pPath)).toBe(true);
+    }
 
     const check = await page.evaluate(() => {
       const text = document.body.textContent || '';
