@@ -42,7 +42,7 @@ async function renderAll() {
         content: `
           <div style="border-bottom: 2px solid ${border}; padding-bottom: 12px; margin-bottom: 16px;">
             <h1 style="font-size: 20px; margin: 0 0 4px 0; font-weight: 700;">Distributed Systems & Consensus Architecture</h1>
-            <div style="font-size: 11px; color: ${muted};">Style: ${pageStyle.toUpperCase()} | Source: Claude | Date: 2026-11-15</div>
+            <div style="font-size: 11px; color: ${muted};">Source: Claude | Date: 2026-11-15</div>
           </div>
           <div style="margin-bottom: 14px; padding: 12px 14px; border-radius: 8px; background: ${userBg}; color: ${userText}; border-left: 4px solid #10a37f;">
             <div style="font-weight: 700; font-size: 11px; margin-bottom: 6px;">👤 USER</div>
@@ -262,7 +262,7 @@ async function renderAll() {
       <body>
         <div class="header">
           <h2 style="margin: 0 0 4px 0;">Distributed Systems & Consensus Architecture</h2>
-          <div style="font-size: 11px; color: #71717a;">Dark Long Screenshot Export | 32 Messages</div>
+          <div style="font-size: 11px; color: #71717a;">Full Conversation Export | 32 Messages</div>
         </div>
         <div class="msg user">
           👤 User: नमस्ते! कैन यू एक्सप्लेन distributed systems architecture with real-world patterns? 🚀 💡
@@ -447,7 +447,7 @@ async function renderAll() {
         <body>
           <div class="card">
             <div>
-              <div class="header">CARD ${c + 1} OF 4 - ${style.toUpperCase()}</div>
+              <div class="header">CARD ${c + 1} OF 4</div>
               <div class="title">${card.title}</div>
               <div class="body">
                 ${card.content}

@@ -218,7 +218,7 @@ describe('Visual Export Quality Audit (Task 1)', () => {
             <div>
               <div class="chat2pdf-header">
                 <h1 class="chat2pdf-title">${chat.title}</h1>
-                <div style="font-size: 11px; color: ${mutedText};">Page Style: ${pageStyle.toUpperCase()} | 32 Messages</div>
+                <div style="font-size: 11px; color: ${mutedText};">32 Messages | Date: 2026-11-15</div>
               </div>
 
               <!-- Message 1: User with attachments, emoji, Hindi -->
@@ -335,7 +335,7 @@ describe('Visual Export Quality Audit (Task 1)', () => {
         <body>
           <div class="header">
             <h2>${chat.title}</h2>
-            <div style="font-size: 11px; color: ${mutedText};">Style: ${pageStyle}</div>
+            <div style="font-size: 11px; color: ${mutedText};">Date: 2026-11-15</div>
           </div>
           <div class="msg user">👤 User: ${chat.messages[0].content}</div>
           <div class="msg assistant">🤖 Assistant: नमस्ते! यहाँ वितरित प्रणाली का संपूर्ण विवरण है। 🚀

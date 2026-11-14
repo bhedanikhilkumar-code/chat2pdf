@@ -24,10 +24,44 @@ function splitTextIntoChunks(text: string, maxLen = 700): string[] {
   return chunks.length > 0 ? chunks : [text];
 }
 
-export async function exportPptx(
+function parsePptxTable(
+  tableLines: string[],
+  isDark: boolean,
+  textColor: string
+): any[][] | null {
+  if (tableLines.length < 2) return null;
+  const rows: any[][] = [];
+
+  tableLines.forEach((line, rowIndex) => {
+    if (/^[|\s:-]+$/.test(line)) return;
+    const cells = line
+      .split('|')
+      .slice(1, -1)
+      .map((c) => c.trim());
+    if (cells.length === 0) return;
+    const isHeader = rowIndex === 0;
+
+    const rowCells = cells.map((cellText) => ({
+      text: cleanMathToReadableText(cellText),
+      options: {
+        bold: isHeader,
+        fontSize: isHeader ? 10 : 9.5,
+        color: textColor,
+        fill: isHeader ? (isDark ? '064e3b' : 'e0f2fe') : (isDark ? '18181b' : 'ffffff'),
+        align: 'left',
+      },
+    }));
+
+    rows.push(rowCells);
+  });
+
+  return rows.length > 0 ? rows : null;
+}
+
+export function buildPptxPresentation(
   conversation: Conversation,
   options: ExportOptions
-): Promise<void> {
+): PptxGenJS {
   const messages = filterMessages(conversation.messages, options.filterMode);
   const resolved = resolveTheme(conversation.themeSnapshot, options.pageStyle, conversation.source);
   const isDark = resolved.mode === 'dark';
@@ -215,18 +249,47 @@ export async function exportPptx(
           rectRadius: 0.08,
         });
 
-        const hasCode = chunk.includes('```');
-        slide.addText(chunk, {
-          x: 1.0,
-          y: 3.05,
-          w: 11.3,
-          h: 3.6,
-          fontSize: hasCode ? 10.5 : 11.5,
-          color: COLORS.bodyText,
-          fontFace: hasCode ? 'Courier New' : 'Arial',
-          valign: 'top',
-          wrap: true,
-        });
+        const lines = chunk.split('\n');
+        const tableLines = lines.filter((l) => l.trim().startsWith('|') && l.trim().endsWith('|'));
+        const hasTable = tableLines.length >= 2;
+        const tableRows = hasTable ? parsePptxTable(tableLines, isDark, COLORS.bodyText) : null;
+
+        if (tableRows) {
+          const nonTableLines = lines.filter((l) => !(l.trim().startsWith('|') && l.trim().endsWith('|')));
+          const nonTableText = nonTableLines.join('\n').trim();
+          if (nonTableText) {
+            slide.addText(nonTableText, {
+              x: 1.0,
+              y: 3.05,
+              w: 11.3,
+              h: 1.5,
+              fontSize: 10.5,
+              color: COLORS.bodyText,
+              fontFace: 'Arial',
+              valign: 'top',
+              wrap: true,
+            });
+          }
+          slide.addTable(tableRows, {
+            x: 1.0,
+            y: nonTableText ? 4.7 : 3.1,
+            w: 11.3,
+            border: { type: 'solid', pt: 1, color: COLORS.assistantBorder },
+          });
+        } else {
+          const hasCode = chunk.includes('```');
+          slide.addText(chunk, {
+            x: 1.0,
+            y: 3.05,
+            w: 11.3,
+            h: 3.6,
+            fontSize: hasCode ? 10.5 : 11.5,
+            color: COLORS.bodyText,
+            fontFace: hasCode ? 'Courier New' : 'Arial',
+            valign: 'top',
+            wrap: true,
+          });
+        }
 
         slideNum++;
       });
@@ -287,6 +350,14 @@ export async function exportPptx(
     }
   }
 
+  return pptx;
+}
+
+export async function exportPptx(
+  conversation: Conversation,
+  options: ExportOptions
+): Promise<void> {
+  const pptx = buildPptxPresentation(conversation, options);
   const blob = (await pptx.write({ outputType: 'blob' })) as Blob;
   await downloadBlob(blob, `${options.fileName || conversation.title || 'chat'}.pptx`);
 }

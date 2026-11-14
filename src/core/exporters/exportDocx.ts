@@ -170,10 +170,10 @@ function buildContentElements(
   return elements;
 }
 
-export async function exportDocx(
+export function buildDocxDocument(
   conversation: Conversation,
   options: ExportOptions
-): Promise<void> {
+): Document {
   const messages = filterMessages(conversation.messages, options.filterMode);
   const resolved = resolveTheme(conversation.themeSnapshot, options.pageStyle, conversation.source);
   const isDark = resolved.mode === 'dark';
@@ -288,7 +288,7 @@ export async function exportDocx(
     );
   }
 
-  const doc = new Document({
+  return new Document({
     background: {
       color: bgColor,
     },
@@ -337,7 +337,13 @@ export async function exportDocx(
       },
     ],
   });
+}
 
+export async function exportDocx(
+  conversation: Conversation,
+  options: ExportOptions
+): Promise<void> {
+  const doc = buildDocxDocument(conversation, options);
   const blob = await Packer.toBlob(doc);
   await downloadBlob(blob, `${options.fileName || conversation.title || 'chat'}.docx`);
 }
