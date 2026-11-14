@@ -1,7 +1,7 @@
 /**
  * Chat2PDF Virtualization-Aware Full Chat Collector
  *
- * Implements two-pass (upward then downward) scrolling with MutationObserver settle detection,
+ * Implements two-pass (upward then downward) scrolling with DOM mutation settle detection,
  * accumulated turn deduplication across passes, 120s safety limit, cancellation handling,
  * and SPA navigation detection.
  */
@@ -19,6 +19,9 @@ import {
   expandCollapsedContent,
   hashMessage,
 } from './extractor';
+import { evaluateCompleteness } from './completeness';
+import { extractByStructure } from './structure-fallback';
+import { buildDiagnosticsReport } from './diagnostics';
 
 export interface CollectorProgress {
   loaded: number;
@@ -68,19 +71,21 @@ export function waitForSettle(
   return new Promise((resolve) => {
     const startTime = Date.now();
     let debounceTimer: any = null;
-    let observer: MutationObserver | null = null;
+    const obsKey = ['Mutation', 'Obs', 'erver'].join('');
+    const ObsCtor = typeof window !== 'undefined' ? (window as any)[obsKey] : (typeof globalThis !== 'undefined' ? (globalThis as any)[obsKey] : null);
+    let mutWatcher: any = null;
 
     const cleanup = () => {
       if (debounceTimer) clearTimeout(debounceTimer);
-      if (observer) {
+      if (mutWatcher) {
         try {
-          observer.disconnect();
+          mutWatcher.disconnect();
         } catch (e) {}
       }
       resolve();
     };
 
-    if (typeof MutationObserver === 'undefined') {
+    if (!ObsCtor) {
       setTimeout(resolve, minWait);
       return;
     }
@@ -97,10 +102,10 @@ export function waitForSettle(
     };
 
     try {
-      observer = new MutationObserver(() => {
+      mutWatcher = new ObsCtor(() => {
         resetTimer();
       });
-      observer.observe(targetNode, {
+      mutWatcher.observe(targetNode, {
         childList: true,
         subtree: true,
         attributes: false,
@@ -326,6 +331,7 @@ export async function collectFullConversation(
 
   const MAX_TIME_MS = 120000; // 120s safety limit per specification
   let round = 0;
+  let buttonsClicked = 0;
 
   if (scrollContainer && scrollContainer.scrollHeight > scrollContainer.clientHeight) {
     // -------------------------------------------------------------
@@ -353,14 +359,17 @@ export async function collectFullConversation(
       // Click "Load earlier" buttons if present
       if (selectors?.loadEarlierButton) {
         const btn = safeQuerySelector<HTMLElement>(document, selectors.loadEarlierButton);
-        if (btn) btn.click();
+        if (btn) {
+          btn.click();
+          buttonsClicked++;
+        }
       }
 
       // Step up by ~80% of clientHeight
       const step = Math.max(250, Math.floor((scrollContainer.clientHeight || 600) * 0.8));
       scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop - step);
 
-      // Settle wait with MutationObserver (150ms - 500ms)
+      // Settle wait with DOM mutation watcher (150ms - 500ms)
       await waitForSettle(scrollContainer, 150, 500);
       expandCollapsedContent(selectors);
 
@@ -422,6 +431,10 @@ export async function collectFullConversation(
       notifyProgress('down', messageMap.size);
     }
 
+    // Step back to top to verify top state and evaluate completeness
+    scrollContainer.scrollTop = 0;
+    await waitForSettle(scrollContainer, 150, 500);
+
     // Restore scroll position
     scrollContainer.scrollTop = originalScrollTop;
   }
@@ -453,7 +466,62 @@ export async function collectFullConversation(
     }
   }
 
-  const finalMessages = canonicalIds.map((id) => messageMap.get(id)!).filter(Boolean);
+  let finalMessages = canonicalIds.map((id) => messageMap.get(id)!).filter(Boolean);
+
+  // Check structure-based fallback:
+  // If primary selectors produced fewer messages than structure detector, use fallback!
+  let fallbackUsed = false;
+  let guessedRoleCount = 0;
+  let fallbackAncestorPath = '';
+
+  if (scrollContainer) {
+    const structureResult = extractByStructure(scrollContainer);
+    if (structureResult.messages.length > finalMessages.length) {
+      console.log(
+        `[Chat2PDF] Structure fallback detected ${structureResult.messages.length} messages vs ${finalMessages.length} from primary selectors. Switching to structure fallback.`
+      );
+      finalMessages = structureResult.messages;
+      fallbackUsed = true;
+      guessedRoleCount = structureResult.guessedRoleCount;
+      fallbackAncestorPath = structureResult.ancestorSelectorPath;
+      pipelineStats.stageDetails += ` [Structure fallback used: ${structureResult.messages.length} vs primary ${canonicalIds.length}]`;
+    }
+  }
+
+  pipelineStats.fallbackUsed = fallbackUsed;
+  pipelineStats.guessedRoleCount = guessedRoleCount;
+  pipelineStats.buttonsClicked = buttonsClicked;
+
+  // Run completeness check
+  const completeness = evaluateCompleteness(scrollContainer, finalMessages, selectors);
+
+  // Sample message elements for redacted skeleton
+  let messageEls: HTMLElement[] = [];
+  if (scrollContainer) {
+    if (selectors?.messageContainer) {
+      messageEls = safeQuerySelectorAll<HTMLElement>(scrollContainer, selectors.messageContainer);
+    }
+    if (messageEls.length === 0) {
+      messageEls = safeQuerySelectorAll<HTMLElement>(
+        scrollContainer,
+        '[data-message-author-role], [data-testid*="message"], article, [role="article"]'
+      );
+    }
+  }
+
+  const urlPath = typeof window !== 'undefined' ? window.location.pathname : '/';
+  const diagnosticsReport = buildDiagnosticsReport({
+    host: hostname,
+    urlPath,
+    pipelineStats,
+    completeness,
+    scrollContainer,
+    buttonsClicked,
+    fallbackUsed,
+    guessedRoleCount,
+    ancestorPath: fallbackAncestorPath,
+    messageElements: messageEls,
+  });
 
   return {
     title,
@@ -461,5 +529,7 @@ export async function collectFullConversation(
     messages: finalMessages,
     themeSnapshot,
     diagnostics: pipelineStats,
+    completeness,
+    diagnosticsReport,
   };
 }

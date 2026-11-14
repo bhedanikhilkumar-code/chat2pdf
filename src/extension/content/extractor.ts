@@ -31,6 +31,18 @@ export interface PipelineDiagnostics {
   rounds: number;
   elapsedMs: number;
   stageDetails: string;
+  fallbackUsed?: boolean;
+  guessedRoleCount?: number;
+  buttonsClicked?: number;
+}
+
+export interface CompletenessReport {
+  status: 'Complete' | 'Possibly incomplete';
+  foundCount: number;
+  expectedCount: number;
+  hasRemainingLoadControl: boolean;
+  reachedTop: boolean;
+  reason?: string;
 }
 
 export interface ExtractedConversation {
@@ -39,6 +51,8 @@ export interface ExtractedConversation {
   messages: ExtractedMessage[];
   themeSnapshot?: ThemeSnapshot;
   diagnostics?: PipelineDiagnostics;
+  completeness?: CompletenessReport;
+  diagnosticsReport?: any;
 }
 
 // Re-export collector APIs for seamless backwards compatibility

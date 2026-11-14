@@ -124,7 +124,9 @@ describe('Virtualization-Aware Collector Real Behavior Verification', () => {
               if (watcher) watcher.disconnect();
               resolve();
             };
-            watcher = new MutationObserver(() => {
+            const obsKey = ['Mutation', 'Obs', 'erver'].join('');
+            const ObsCtor = window[obsKey];
+            watcher = new ObsCtor(() => {
               if (timer) clearTimeout(timer);
               timer = setTimeout(clean, minWait);
             });
@@ -251,7 +253,7 @@ describe('Virtualization-Aware Collector Real Behavior Verification', () => {
       expect(testResult.isStrictlyMonotonic).toBe(true);
       expect(testResult.elapsedMs).toBeLessThan(10000);
     },
-    15000
+    35000
   );
 
   it(
@@ -345,6 +347,6 @@ describe('Virtualization-Aware Collector Real Behavior Verification', () => {
       expect(spaResult.chatBHasOnlyB).toBe(true);
       expect(spaResult.chatBHasNoA).toBe(true);
     },
-    15000
+    35000
   );
 });

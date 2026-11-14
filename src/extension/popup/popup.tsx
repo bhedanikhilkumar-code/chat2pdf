@@ -1,17 +1,41 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Download, ExternalLink, RefreshCw, AlertCircle, CheckCircle2, Globe, XCircle, AlertTriangle, Copy, Check } from 'lucide-react';
+import {
+  Download,
+  ExternalLink,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle2,
+  Globe,
+  XCircle,
+  AlertTriangle,
+  Copy,
+  Check,
+  MoreVertical,
+  ClipboardCheck,
+} from 'lucide-react';
+
+interface CompletenessState {
+  status: 'Complete' | 'Possibly incomplete';
+  foundCount: number;
+  expectedCount: number;
+  reason?: string;
+}
 
 const Popup: React.FC = () => {
   const [status, setStatus] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [currentHost, setCurrentHost] = useState<string>('');
+  const [currentPath, setCurrentPath] = useState<string>('');
   const [isSupported, setIsSupported] = useState<boolean>(false);
   const [messageCount, setMessageCount] = useState<number | null>(null);
-  const [sanityWarning, setSanityWarning] = useState<string | null>(null);
+  const [completeness, setCompleteness] = useState<CompletenessState | null>(null);
   const [friendlyError, setFriendlyError] = useState<string | null>(null);
   const [rawErrorDetails, setRawErrorDetails] = useState<string | null>(null);
-  const [copied, setCopied] = useState<boolean>(false);
+  const [diagnosticsReport, setDiagnosticsReport] = useState<any | null>(null);
+  const [copiedDiag, setCopiedDiag] = useState<boolean>(false);
+  const [copiedError, setCopiedError] = useState<boolean>(false);
+  const [showMenu, setShowMenu] = useState<boolean>(false);
 
   const supportedHosts = [
     'chatgpt.com',
@@ -30,6 +54,7 @@ const Popup: React.FC = () => {
             const url = new URL(tabs[0].url);
             const host = url.hostname.replace(/^www\./, '');
             setCurrentHost(host);
+            setCurrentPath(url.pathname);
             const supported = supportedHosts.some((h) => host.includes(h));
             setIsSupported(supported);
             console.log(`[Chat2PDF] Popup initialized for host: ${host} (supported=${supported})`);
@@ -61,13 +86,84 @@ const Popup: React.FC = () => {
     }
   }, []);
 
-  const handleExport = async () => {
+  const copyToClipboard = (text: string, onSuccess: () => void) => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(onSuccess).catch(() => {
+          fallbackCopy(text, onSuccess);
+        });
+      } else {
+        fallbackCopy(text, onSuccess);
+      }
+    } catch (e) {
+      fallbackCopy(text, onSuccess);
+    }
+  };
+
+  const fallbackCopy = (text: string, onSuccess: () => void) => {
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      onSuccess();
+    } catch (err) {
+      console.error('[Chat2PDF] Copy failed', err);
+    }
+  };
+
+  const handleCopyDiagnostics = () => {
+    let reportToCopy = diagnosticsReport;
+    if (!reportToCopy) {
+      reportToCopy = {
+        timestamp: new Date().toISOString(),
+        extensionVersion: '1.2.0',
+        host: currentHost || 'unknown',
+        urlPathShape: currentPath ? currentPath.replace(/[0-9a-f-]{10,}/gi, ':id') : '/',
+        pipelineStages: {
+          rawNodesFound: messageCount || 0,
+          afterRoleClassification: messageCount || 0,
+          afterCleaning: messageCount || 0,
+          afterDedupe: messageCount || 0,
+          afterMerge: messageCount || 0,
+          final: messageCount || 0,
+        },
+        completeness: completeness || {
+          status: 'Not evaluated',
+          foundCount: messageCount || 0,
+          expectedCount: messageCount || 0,
+        },
+      };
+    }
+
+    const jsonStr = JSON.stringify(reportToCopy, null, 2);
+    copyToClipboard(jsonStr, () => {
+      setCopiedDiag(true);
+      setShowMenu(false);
+      setTimeout(() => setCopiedDiag(false), 2500);
+    });
+  };
+
+  const handleCopyErrorDetails = () => {
+    if (!rawErrorDetails) return;
+    copyToClipboard(rawErrorDetails, () => {
+      setCopiedError(true);
+      setTimeout(() => setCopiedError(false), 2000);
+    });
+  };
+
+  const handleExport = async (forceProceed = false) => {
     setLoading(true);
     setStatus('Loading conversation & scrolling older messages...');
-    setSanityWarning(null);
+    setCompleteness(null);
     setFriendlyError(null);
     setRawErrorDetails(null);
-    setCopied(false);
+    setCopiedDiag(false);
+    setCopiedError(false);
 
     if (typeof chrome === 'undefined' || !chrome.tabs) {
       setFriendlyError('Extension APIs not available in this environment.');
@@ -98,8 +194,12 @@ const Popup: React.FC = () => {
         }
 
         if (response?.success && response.data) {
-          const { messages, title, source, diagnostics } = response.data;
+          const { messages, title, source, diagnostics, completeness: compReport, diagnosticsReport: diagObj } = response.data;
           const diagStr = diagnostics ? `\nPipeline Diagnostics: ${diagnostics.stageDetails} (elapsed: ${diagnostics.elapsedMs}ms)` : '';
+
+          if (diagObj) {
+            setDiagnosticsReport(diagObj);
+          }
 
           if (!messages || messages.length === 0) {
             console.warn('[Chat2PDF] Received empty message array from extractor');
@@ -110,21 +210,30 @@ const Popup: React.FC = () => {
           }
 
           setMessageCount(messages.length);
-          console.log(`[Chat2PDF] Full chat extracted successfully: ${messages.length} messages.${diagStr}`);
+          console.log(`[Chat2PDF] Full chat extracted: ${messages.length} messages.${diagStr}`);
           setRawErrorDetails(`[Chat2PDF Pipeline Info]\nHost: ${currentHost}\nExtracted: ${messages.length} messages${diagStr}\nTime: ${new Date().toISOString()}`);
 
-          // Sanity check: verify plausible role alternation
-          let nonAlternating = 0;
-          for (let i = 1; i < messages.length; i++) {
-            if (messages[i].role === messages[i - 1].role) nonAlternating++;
-          }
-          if (messages.length < 2) {
-            setSanityWarning('Extracted only 1 message. Older messages may still be loading.');
-          } else if (nonAlternating > messages.length * 0.4) {
-            setSanityWarning('Unusual message role sequence detected. Some turns may have multiple parts.');
+          if (compReport) {
+            setCompleteness({
+              status: compReport.status,
+              foundCount: compReport.foundCount,
+              expectedCount: compReport.expectedCount,
+              reason: compReport.reason,
+            });
           }
 
-          setStatus(`Successfully extracted ${messages.length} messages! Opening exporter...`);
+          // Check completeness status
+          const isIncomplete = compReport?.status === 'Possibly incomplete';
+
+          if (isIncomplete && !forceProceed) {
+            setLoading(false);
+            setStatus('');
+            console.warn(`[Chat2PDF] Extraction flagged as possibly incomplete (${compReport.foundCount}/${compReport.expectedCount})`);
+            return;
+          }
+
+          // Complete or user forced proceed
+          setStatus(`Complete: ${messages.length} messages`);
 
           chrome.storage.local.set(
             {
@@ -133,6 +242,7 @@ const Popup: React.FC = () => {
                 title,
                 source,
                 themeSnapshot: response.data.themeSnapshot,
+                diagnosticsReport: diagObj,
               },
             },
             () => {
@@ -158,27 +268,6 @@ const Popup: React.FC = () => {
     }
   };
 
-  const handleCopyErrorDetails = () => {
-    if (!rawErrorDetails) return;
-    try {
-      navigator.clipboard.writeText(rawErrorDetails).then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }).catch(() => {
-        const textarea = document.createElement('textarea');
-        textarea.value = rawErrorDetails;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      });
-    } catch (e) {
-      console.error('[Chat2PDF] Failed to copy error details', e);
-    }
-  };
-
   const handleCancel = async () => {
     if (typeof chrome !== 'undefined' && chrome.tabs) {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -199,7 +288,7 @@ const Popup: React.FC = () => {
   };
 
   return (
-    <div style={{ width: '360px', padding: '18px', boxSizing: 'border-box', fontFamily: 'Inter, system-ui, sans-serif' }}>
+    <div style={{ width: '360px', padding: '18px', boxSizing: 'border-box', fontFamily: 'Inter, system-ui, sans-serif', position: 'relative' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -208,9 +297,67 @@ const Popup: React.FC = () => {
             Chat2PDF
           </h2>
         </div>
-        <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '12px', backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe' }}>
-          Full-Chat Extraction
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '12px', backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe' }}>
+            Full-Chat Extraction
+          </span>
+          {/* Small '...' menu button */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              title="More options"
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: '4px',
+                cursor: 'pointer',
+                borderRadius: '6px',
+                color: '#64748b',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <MoreVertical style={{ width: '16px', height: '16px' }} />
+            </button>
+            {showMenu && (
+              <div
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  top: '24px',
+                  backgroundColor: '#ffffff',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  padding: '4px',
+                  zIndex: 50,
+                  width: '150px',
+                }}
+              >
+                <button
+                  onClick={handleCopyDiagnostics}
+                  style={{
+                    width: '100%',
+                    padding: '6px 10px',
+                    textAlign: 'left',
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '11px',
+                    color: '#1e293b',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    borderRadius: '4px',
+                  }}
+                >
+                  <Copy style={{ width: '12px', height: '12px' }} />
+                  <span>Copy diagnostics</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Host Status Card */}
@@ -240,7 +387,7 @@ const Popup: React.FC = () => {
       {/* Primary Action Button */}
       <div style={{ display: 'flex', gap: '8px' }}>
         <button
-          onClick={handleExport}
+          onClick={() => handleExport(false)}
           disabled={loading}
           style={{
             flex: 1,
@@ -290,28 +437,114 @@ const Popup: React.FC = () => {
         )}
       </div>
 
-      {/* Sanity warning if any */}
-      {sanityWarning && (
+      {/* Amber: "Possibly incomplete: found N, expected about M. Tap Copy diagnostics" */}
+      {completeness?.status === 'Possibly incomplete' && (
         <div
           style={{
-            marginTop: '10px',
-            padding: '8px 10px',
-            borderRadius: '8px',
-            fontSize: '11px',
+            marginTop: '12px',
+            padding: '11px 12px',
+            borderRadius: '10px',
+            fontSize: '11.5px',
             backgroundColor: '#fffbeb',
-            color: '#b45309',
-            border: '1px solid #fde68a',
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '6px',
+            color: '#92400e',
+            border: '1px solid #fcd34d',
+            lineHeight: 1.4,
           }}
         >
-          <AlertTriangle style={{ width: '14px', height: '14px', marginTop: '1px', flexShrink: 0 }} />
-          <span>{sanityWarning}</span>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+            <AlertTriangle style={{ width: '16px', height: '16px', color: '#d97706', flexShrink: 0, marginTop: '1px' }} />
+            <div>
+              <div style={{ fontWeight: 600, color: '#b45309' }}>
+                Possibly incomplete: found {completeness.foundCount}, expected about {completeness.expectedCount}.
+              </div>
+              <div style={{ marginTop: '3px', color: '#78350f', fontSize: '11px' }}>
+                {completeness.reason || 'Some earlier chat turns may have been missed by site virtualization.'}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', paddingTop: '8px', borderTop: '1px dashed #fde68a' }}>
+            <button
+              onClick={handleCopyDiagnostics}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '5px 10px',
+                fontSize: '11px',
+                fontWeight: 600,
+                color: copiedDiag ? '#15803d' : '#92400e',
+                backgroundColor: '#ffffff',
+                border: copiedDiag ? '1px solid #86efac' : '1px solid #fcd34d',
+                borderRadius: '6px',
+                cursor: 'pointer',
+              }}
+            >
+              {copiedDiag ? <Check style={{ width: '12px', height: '12px' }} /> : <Copy style={{ width: '12px', height: '12px' }} />}
+              <span>{copiedDiag ? 'Copied diagnostics!' : 'Tap Copy diagnostics'}</span>
+            </button>
+
+            <button
+              onClick={() => handleExport(true)}
+              style={{
+                padding: '5px 10px',
+                fontSize: '11px',
+                fontWeight: 600,
+                color: '#2563eb',
+                backgroundColor: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                borderRadius: '6px',
+                cursor: 'pointer',
+              }}
+            >
+              Export anyway
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Friendly Error Box with Copy Error Details */}
+      {/* Green: "Complete: N messages" */}
+      {completeness?.status === 'Complete' && (
+        <div
+          style={{
+            marginTop: '12px',
+            padding: '10px 12px',
+            borderRadius: '10px',
+            fontSize: '11.5px',
+            backgroundColor: '#f0fdf4',
+            color: '#15803d',
+            border: '1px solid #bbf7d0',
+            lineHeight: 1.4,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircle2 style={{ width: '16px', height: '16px', color: '#16a34a', flexShrink: 0 }} />
+            <span style={{ fontWeight: 600 }}>Complete: {completeness.foundCount} messages</span>
+          </div>
+          <button
+            onClick={handleCopyDiagnostics}
+            title="Copy diagnostics for comparison"
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#16a34a',
+              fontSize: '10.5px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '3px',
+              textDecoration: 'underline',
+            }}
+          >
+            {copiedDiag ? 'Copied!' : 'Copy diagnostics'}
+          </button>
+        </div>
+      )}
+
+      {/* Friendly Error Box with Copy Error Details & Copy diagnostics */}
       {friendlyError && (
         <div
           style={{
@@ -329,54 +562,69 @@ const Popup: React.FC = () => {
             <AlertCircle style={{ width: '15px', height: '15px', color: '#dc2626', flexShrink: 0, marginTop: '1px' }} />
             <span style={{ fontWeight: 500 }}>{friendlyError}</span>
           </div>
-          {rawErrorDetails && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px', marginTop: '6px' }}>
+            <button
+              onClick={handleCopyDiagnostics}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 8px',
+                fontSize: '11px',
+                fontWeight: 600,
+                color: copiedDiag ? '#15803d' : '#991b1b',
+                backgroundColor: '#ffffff',
+                border: copiedDiag ? '1px solid #86efac' : '1px solid #fca5a5',
+                borderRadius: '6px',
+                cursor: 'pointer',
+              }}
+            >
+              {copiedDiag ? <Check style={{ width: '12px', height: '12px' }} /> : <Copy style={{ width: '12px', height: '12px' }} />}
+              <span>{copiedDiag ? 'Copied!' : 'Copy diagnostics'}</span>
+            </button>
+            {rawErrorDetails && (
               <button
                 onClick={handleCopyErrorDetails}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '5px',
+                  gap: '4px',
                   padding: '4px 8px',
                   fontSize: '11px',
                   fontWeight: 600,
-                  color: copied ? '#15803d' : '#b91c1c',
+                  color: copiedError ? '#15803d' : '#64748b',
                   backgroundColor: '#ffffff',
-                  border: copied ? '1px solid #86efac' : '1px solid #fca5a5',
+                  border: '1px solid #cbd5e1',
                   borderRadius: '6px',
                   cursor: 'pointer',
                 }}
               >
-                {copied ? <Check style={{ width: '12px', height: '12px' }} /> : <Copy style={{ width: '12px', height: '12px' }} />}
-                <span>{copied ? 'Copied details!' : 'Copy error details'}</span>
+                {copiedError ? <Check style={{ width: '12px', height: '12px' }} /> : <ClipboardCheck style={{ width: '12px', height: '12px' }} />}
+                <span>{copiedError ? 'Copied details!' : 'Copy raw error'}</span>
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
 
-      {/* Normal Status Message (when not error) */}
-      {!friendlyError && status && (
+      {/* Progress Status Message during active collection */}
+      {!friendlyError && !completeness && status && (
         <div
           style={{
             marginTop: '12px',
             padding: '8px 10px',
             borderRadius: '8px',
             fontSize: '11px',
-            backgroundColor: status.includes('Success') ? '#f0fdf4' : '#f8fafc',
-            color: status.includes('Success') ? '#15803d' : '#475569',
-            border: status.includes('Success') ? '1px solid #bbf7d0' : '1px solid #e2e8f0',
+            backgroundColor: '#f8fafc',
+            color: '#475569',
+            border: '1px solid #e2e8f0',
             lineHeight: 1.4,
             display: 'flex',
             alignItems: 'flex-start',
             gap: '6px',
           }}
         >
-          {status.includes('Success') ? (
-            <CheckCircle2 style={{ width: '14px', height: '14px', marginTop: '1px', flexShrink: 0 }} />
-          ) : (
-            <RefreshCw style={{ width: '14px', height: '14px', marginTop: '1px', flexShrink: 0, animation: loading ? 'spin 1.5s linear infinite' : 'none' }} />
-          )}
+          <RefreshCw style={{ width: '14px', height: '14px', marginTop: '1px', flexShrink: 0, animation: loading ? 'spin 1.5s linear infinite' : 'none' }} />
           <span>{status}</span>
         </div>
       )}
