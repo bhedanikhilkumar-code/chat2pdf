@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Conversation, ExportFormat, ExportOptions, FilterMode, HandwritingOptions, ImageMode } from '../../core/parser/types';
+import type { Conversation, ExportFormat, ExportOptions, FilterMode, HandwritingOptions, ImageMode, PageStyle } from '../../core/parser/types';
 import { HandwritingControls } from './HandwritingControls';
 import {
   FileText,
@@ -54,6 +54,9 @@ export const ExportStep: React.FC<ExportStepProps> = ({
 }) => {
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('pdf');
   const [imageMode, setImageMode] = useState<ImageMode>('long');
+  const [pageStyle, setPageStyle] = useState<PageStyle>(
+    conversation.themeSnapshot ? 'match' : 'light'
+  );
   const [activeExportingId, setActiveExportingId] = useState<string | null>(null);
   const [copiedError, setCopiedError] = useState(false);
   const [showHandwritingPanel, setShowHandwritingPanel] = useState(false);
@@ -129,6 +132,7 @@ export const ExportStep: React.FC<ExportStepProps> = ({
       await onExport({
         format,
         filterMode,
+        pageStyle,
         imageMode,
       });
     } finally {
@@ -142,6 +146,7 @@ export const ExportStep: React.FC<ExportStepProps> = ({
       await onExport({
         format: 'handwriting',
         filterMode,
+        pageStyle,
         handwriting: hwOptions,
       });
     } finally {
@@ -247,6 +252,48 @@ export const ExportStep: React.FC<ExportStepProps> = ({
           </div>
         </div>
       )}
+
+      {/* Page style control: Match chat / Light / Dark */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200/80 dark:border-gray-800">
+        <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
+          Page style:
+        </span>
+        <div className="inline-flex rounded-xl bg-gray-200/70 dark:bg-gray-900/80 p-0.5 text-xs font-medium">
+          <button
+            type="button"
+            onClick={() => setPageStyle('match')}
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+              pageStyle === 'match'
+                ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-xs'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+            }`}
+          >
+            Match chat
+          </button>
+          <button
+            type="button"
+            onClick={() => setPageStyle('light')}
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+              pageStyle === 'light'
+                ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-xs'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+            }`}
+          >
+            Light
+          </button>
+          <button
+            type="button"
+            onClick={() => setPageStyle('dark')}
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+              pageStyle === 'dark'
+                ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-xs'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+            }`}
+          >
+            Dark
+          </button>
+        </div>
+      </div>
 
       {/* Formats Grid: 2 columns on phone, 4 columns on desktop */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-3.5">

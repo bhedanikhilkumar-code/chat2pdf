@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Conversation, FilterMode } from '../../core/parser/types';
 import { filterMessages } from '../../core/parser/filters';
-import { ChatPreview } from './ChatPreview';
+import { ChatView } from './ChatView';
 import { ArrowLeft, ArrowRight, Filter, Eye, EyeOff } from 'lucide-react';
 
 interface PreviewStepProps {
@@ -84,11 +84,11 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
       </div>
 
       {/* Preview Container */}
-      <div className="p-4 sm:p-6 bg-white dark:bg-gray-900 border border-gray-200/90 dark:border-gray-800 rounded-2xl shadow-xs">
-        <ChatPreview
-          messages={activeMessages}
-          title={conversation.title}
-          source={conversation.source}
+      <div className="border border-gray-200/90 dark:border-gray-800 rounded-2xl shadow-xs overflow-hidden">
+        <ChatView
+          conversation={conversation}
+          messagesOverride={activeMessages}
+          maxHeight="520px"
         />
       </div>
 

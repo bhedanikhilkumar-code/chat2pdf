@@ -39,6 +39,8 @@ export interface Conversation {
 
 export type ExportFormat = 'pdf' | 'pptx' | 'csv' | 'txt' | 'md' | 'jpg' | 'png' | 'docx' | 'handwriting';
 
+export type PageStyle = 'match' | 'light' | 'dark';
+
 export type ImageMode = 'long' | 'short' | 'card';
 
 export type FilterMode = 'all' | 'answers-only' | 'questions-only' | 'summary';
@@ -58,6 +60,7 @@ export interface HandwritingOptions {
 export interface ExportOptions {
   format: ExportFormat;
   filterMode: FilterMode;
+  pageStyle?: PageStyle;
   imageMode?: ImageMode;
   handwriting?: HandwritingOptions;
   includeTitle?: boolean;
