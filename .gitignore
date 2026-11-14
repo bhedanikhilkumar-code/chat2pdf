@@ -10,3 +10,13 @@ Thumbs.db
 .vscode/
 .idea/
 *.log
+
+# Privacy & verification outputs
+test-results/
+docs/verification/
+*.har
+tests/output_downloads/
+tests/output_downloads_fresh/
+*-real-chat*
+*probe-output*
+
