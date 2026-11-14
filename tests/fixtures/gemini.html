@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Cloud Architecture with Gemini</title>
+</head>
+<body class="bg-white text-gray-900">
+  <div class="chat-window-container">
+    <h1 class="conversation-title p-3 text-lg font-semibold">Cloud Architecture with Gemini</h1>
+    <div class="chat-history overflow-y-auto p-4" style="height: 600px; max-height: 600px;">
+      
+      <user-query class="chat-turn block my-4" data-test-id="user-query">
+        <div class="query-container p-3 rounded bg-blue-50 text-blue-950">
+          <div class="query-content">Gemini prompt #1: What are the best practices for designing scalable cloud microservices?</div>
+          
+          <div class="attachment-pill inline-flex items-center gap-1.5 p-1 rounded bg-white border text-xs" aria-label="Attachment: architecture.png">
+            <span class="icon">🖼️</span>
+            <span class="name">architecture.png</span>
+          </div>
+        </div>
+      </user-query>
+      <model-response class="chat-turn block my-4" data-test-id="model-response">
+        <div class="response-container message-content p-4 rounded bg-gray-50 text-gray-900">
+          <p>Gemini response #2: Scalable microservice architectures require deliberate isolation boundaries.</p>
+          <pre><code class="language-go">func HealthHandler(w http.ResponseWriter, r *http.Request) {
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte("ok"))
+}</code></pre>
+        </div>
+      </model-response>
+      <user-query class="chat-turn block my-4" data-test-id="user-query">
+        <div class="query-container p-3 rounded bg-blue-50 text-blue-950">
+          <div class="query-content">Gemini prompt #3: What are the best practices for designing scalable cloud microservices?</div>
+          
+        </div>
+      </user-query>
+      <model-response class="chat-turn block my-4" data-test-id="model-response">
+        <div class="response-container message-content p-4 rounded bg-gray-50 text-gray-900">
+          <p>Gemini response #4: Scalable microservice architectures require deliberate isolation boundaries.</p>
+          
+        <table border="1">
+          <tr><th>Component</th><th>Purpose</th><th>SLA</th></tr>
+          <tr><td>API Gateway</td><td>Ingress routing</td><td>99.99%</td></tr>
+          <tr><td>Auth Service</td><td>Token validation</td><td>99.999%</td></tr>
+        </table>
+        </div>
+      </model-response>
+      <user-query class="chat-turn block my-4" data-test-id="user-query">
+        <div class="query-container p-3 rounded bg-blue-50 text-blue-950">
+          <div class="query-content">Gemini prompt #5: What are the best practices for designing scalable cloud microservices?</div>
+          
+        </div>
+      </user-query>
+      <model-response class="chat-turn block my-4" data-test-id="model-response">
+        <div class="response-container message-content p-4 rounded bg-gray-50 text-gray-900">
+          <p>Gemini response #6: Scalable microservice architectures require deliberate isolation boundaries.</p>
+          
+        <ul>
+          <li>Decentralized data management per service</li>
+          <li>Circuit breaker pattern for fault isolation</li>
+          <li>Distributed tracing and structured telemetry</li>
+        </ul>
+        </div>
+      </model-response>
+      <user-query class="chat-turn block my-4" data-test-id="user-query">
+        <div class="query-container p-3 rounded bg-blue-50 text-blue-950">
+          <div class="query-content">Gemini prompt #7: What are the best practices for designing scalable cloud microservices?</div>
+          
+        </div>
+      </user-query>
+      <model-response class="chat-turn block my-4" data-test-id="model-response">
+        <div class="response-container message-content p-4 rounded bg-gray-50 text-gray-900">
+          <p>Gemini response #8: Scalable microservice architectures require deliberate isolation boundaries.</p>
+          
+        </div>
+      </model-response>
+      <user-query class="chat-turn block my-4" data-test-id="user-query">
+        <div class="query-container p-3 rounded bg-blue-50 text-blue-950">
+          <div class="query-content">Gemini prompt #9: What are the best practices for designing scalable cloud microservices?</div>
+          
+        </div>
+      </user-query>
+      <model-response class="chat-turn block my-4" data-test-id="model-response">
+        <div class="response-container message-content p-4 rounded bg-gray-50 text-gray-900">
+          <p>Gemini response #10: Scalable microservice architectures require deliberate isolation boundaries.</p>
+          
+        </div>
+      </model-response>
+      <user-query class="chat-turn block my-4" data-test-id="user-query">
+        <div class="query-container p-3 rounded bg-blue-50 text-blue-950">
+          <div class="query-content">Gemini prompt #11: What are the best practices for designing scalable cloud microservices?</div>
+          
+        </div>
+      </user-query>
+      <model-response class="chat-turn block my-4" data-test-id="model-response">
+        <div class="response-container message-content p-4 rounded bg-gray-50 text-gray-900">
+          <p>Gemini response #12: Scalable microservice architectures require deliberate isolation boundaries.</p>
+          
+        </div>
+      </model-response>
+      <user-query class="chat-turn block my-4" data-test-id="user-query">
+        <div class="query-container p-3 rounded bg-blue-50 text-blue-950">
+          <div class="query-content">Gemini prompt #13: What are the best practices for designing scalable cloud microservices?</div>
+          
+        </div>
+      </user-query>
+      <model-response class="chat-turn block my-4" data-test-id="model-response">
+        <div class="response-container message-content p-4 rounded bg-gray-50 text-gray-900">
+          <p>Gemini response #14: Scalable microservice architectures require deliberate isolation boundaries.</p>
+          
+        </div>
+      </model-response>
+      <user-query class="chat-turn block my-4" data-test-id="user-query">
+        <div class="query-container p-3 rounded bg-blue-50 text-blue-950">
+          <div class="query-content">Gemini prompt #15: What are the best practices for designing scalable cloud microservices?</div>
+          
+        </div>
+      </user-query>
+      <model-response class="chat-turn block my-4" data-test-id="model-response">
+        <div class="response-container message-content p-4 rounded bg-gray-50 text-gray-900">
+          <p>Gemini response #16: Scalable microservice architectures require deliberate isolation boundaries.</p>
+          
+        </div>
+      </model-response>
+      <user-query class="chat-turn block my-4" data-test-id="user-query">
+        <div class="query-container p-3 rounded bg-blue-50 text-blue-950">
+          <div class="query-content">Gemini prompt #17: What are the best practices for designing scalable cloud microservices?</div>
+          
+        </div>
+      </user-query>
+      <model-response class="chat-turn block my-4" data-test-id="model-response">
+        <div class="response-container message-content p-4 rounded bg-gray-50 text-gray-900">
+          <p>Gemini response #18: Scalable microservice architectures require deliberate isolation boundaries.</p>
+          
+        </div>
+      </model-response>
+      <user-query class="chat-turn block my-4" data-test-id="user-query">
+        <div class="query-container p-3 rounded bg-blue-50 text-blue-950">
+          <div class="query-content">Gemini prompt #19: What are the best practices for designing scalable cloud microservices?</div>
+          
+        </div>
+      </user-query>
+      <model-response class="chat-turn block my-4" data-test-id="model-response">
+        <div class="response-container message-content p-4 rounded bg-gray-50 text-gray-900">
+          <p>Gemini response #20: Scalable microservice architectures require deliberate isolation boundaries.</p>
+          
+        </div>
+      </model-response>
+      <user-query class="chat-turn block my-4" data-test-id="user-query">
+        <div class="query-container p-3 rounded bg-blue-50 text-blue-950">
+          <div class="query-content">Gemini prompt #21: What are the best practices for designing scalable cloud microservices?</div>
+          
+        </div>
+      </user-query>
+      <model-response class="chat-turn block my-4" data-test-id="model-response">
+        <div class="response-container message-content p-4 rounded bg-gray-50 text-gray-900">
+          <p>Gemini response #22: Scalable microservice architectures require deliberate isolation boundaries.</p>
+          
+        </div>
+      </model-response>
+      <user-query class="chat-turn block my-4" data-test-id="user-query">
+        <div class="query-container p-3 rounded bg-blue-50 text-blue-950">
+          <div class="query-content">Gemini prompt #23: What are the best practices for designing scalable cloud microservices?</div>
+          
+        </div>
+      </user-query>
+      <model-response class="chat-turn block my-4" data-test-id="model-response">
+        <div class="response-container message-content p-4 rounded bg-gray-50 text-gray-900">
+          <p>Gemini response #24: Scalable microservice architectures require deliberate isolation boundaries.</p>
+          
+        </div>
+      </model-response>
+      <user-query class="chat-turn block my-4" data-test-id="user-query">
+        <div class="query-container p-3 rounded bg-blue-50 text-blue-950">
+          <div class="query-content">Gemini prompt #25: What are the best practices for designing scalable cloud microservices?</div>
+          
+        </div>
+      </user-query>
+      <model-response class="chat-turn block my-4" data-test-id="model-response">
+        <div class="response-container message-content p-4 rounded bg-gray-50 text-gray-900">
+          <p>Gemini response #26: Scalable microservice architectures require deliberate isolation boundaries.</p>
+          
+        </div>
+      </model-response>
+      <user-query class="chat-turn block my-4" data-test-id="user-query">
+        <div class="query-container p-3 rounded bg-blue-50 text-blue-950">
+          <div class="query-content">Gemini prompt #27: What are the best practices for designing scalable cloud microservices?</div>
+          
+        </div>
+      </user-query>
+      <model-response class="chat-turn block my-4" data-test-id="model-response">
+        <div class="response-container message-content p-4 rounded bg-gray-50 text-gray-900">
+          <p>Gemini response #28: Scalable microservice architectures require deliberate isolation boundaries.</p>
+          
+        </div>
+      </model-response>
+      <user-query class="chat-turn block my-4" data-test-id="user-query">
+        <div class="query-container p-3 rounded bg-blue-50 text-blue-950">
+          <div class="query-content">Gemini prompt #29: What are the best practices for designing scalable cloud microservices?</div>
+          
+        </div>
+      </user-query>
+      <model-response class="chat-turn block my-4" data-test-id="model-response">
+        <div class="response-container message-content p-4 rounded bg-gray-50 text-gray-900">
+          <p>Gemini response #30: Scalable microservice architectures require deliberate isolation boundaries.</p>
+          
+        </div>
+      </model-response>
+    </div>
+  </div>
+</body>
+</html>

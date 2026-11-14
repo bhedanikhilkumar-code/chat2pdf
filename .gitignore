@@ -19,4 +19,5 @@ tests/output_downloads/
 tests/output_downloads_fresh/
 *-real-chat*
 *probe-output*
+.agent/
 

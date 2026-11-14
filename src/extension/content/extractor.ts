@@ -21,11 +21,24 @@ export interface ExtractedMessage {
   attachments?: Attachment[];
 }
 
+export interface PipelineDiagnostics {
+  rawNodesFound: number;
+  afterRoleClassification: number;
+  afterCleaning: number;
+  afterDedupe: number;
+  afterMerge: number;
+  final: number;
+  rounds: number;
+  elapsedMs: number;
+  stageDetails: string;
+}
+
 export interface ExtractedConversation {
   title: string;
   source: string;
   messages: ExtractedMessage[];
   themeSnapshot?: ThemeSnapshot;
+  diagnostics?: PipelineDiagnostics;
 }
 
 // Global cancellation token for async full-chat scroll operations
@@ -120,17 +133,27 @@ function extractAttachments(turnNode: HTMLElement, selectors?: SiteSelectors): A
 
 // Generate stable hash id for message deduplication
 function hashMessage(role: string, content: string): string {
+  const trimmed = content.trim();
+  const sample = `${role}:${trimmed.length}:${trimmed.slice(0, 300)}:${trimmed.slice(-100)}`;
   let hash = 0;
-  const str = `${role}:${content.trim().slice(0, 150)}`;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash << 5) - hash + str.charCodeAt(i);
+  for (let i = 0; i < sample.length; i++) {
+    hash = (hash << 5) - hash + sample.charCodeAt(i);
     hash |= 0;
   }
-  return `msg_${Math.abs(hash)}`;
+  return `msg_${role}_${Math.abs(hash)}`;
+}
+
+export interface ExtractTurnsStats {
+  rawNodes: number;
+  roleClassified: number;
+  cleaned: number;
 }
 
 // Extract turns currently present in DOM
-export function extractVisibleTurns(selectors?: SiteSelectors): ExtractedMessage[] {
+export function extractVisibleTurns(
+  selectors?: SiteSelectors,
+  stats?: ExtractTurnsStats
+): ExtractedMessage[] {
   const defaultJunk = [
     'button',
     '.copy-button',
@@ -144,18 +167,31 @@ export function extractVisibleTurns(selectors?: SiteSelectors): ExtractedMessage
   const extracted: ExtractedMessage[] = [];
 
   if (selectors) {
-    const turns = safeQuerySelectorAll<HTMLElement>(document, selectors.messageContainer);
+    const rawTurns = safeQuerySelectorAll<HTMLElement>(document, selectors.messageContainer);
+    if (stats) stats.rawNodes += rawTurns.length;
+
+    // Filter out ancestor containers that contain other matched turn elements (avoids outer wrapper capture)
+    const turns = rawTurns.filter((turn) => {
+      return !rawTurns.some((other) => other !== turn && turn.contains(other));
+    });
+
     if (turns.length > 0) {
       turns.forEach((turn) => {
         const isUser =
           safeMatches(turn, selectors.userMessage) ||
           safeQuerySelector(turn, selectors.userMessage) !== null;
+        const isAssistant =
+          safeMatches(turn, selectors.assistantMessage) ||
+          safeQuerySelector(turn, selectors.assistantMessage) !== null;
+
+        if (stats && (isUser || isAssistant)) stats.roleClassified++;
         const role: 'user' | 'assistant' = isUser ? 'user' : 'assistant';
 
         const contentEl = safeQuerySelector<HTMLElement>(turn, selectors.messageContent) || turn;
         const { html, markdown } = cleanNodeToMarkdownAndHtml(contentEl, junk);
 
         if (markdown || html) {
+          if (stats) stats.cleaned++;
           const id =
             turn.getAttribute('data-message-id') ||
             turn.getAttribute('data-testid') ||
@@ -177,14 +213,20 @@ export function extractVisibleTurns(selectors?: SiteSelectors): ExtractedMessage
   }
 
   // Fallback heuristics
-  const candidateTurns = safeQuerySelectorAll<HTMLElement>(
+  const rawCandidateTurns = safeQuerySelectorAll<HTMLElement>(
     document,
     '[data-message-author-role], article, [class*=message], [class*=chat-turn]'
   );
+  if (stats) stats.rawNodes += rawCandidateTurns.length;
+
+  const candidateTurns = rawCandidateTurns.filter((turn) => {
+    return !rawCandidateTurns.some((other) => other !== turn && turn.contains(other));
+  });
 
   candidateTurns.forEach((turn) => {
     const roleAttr = (turn.getAttribute('data-message-author-role') || turn.className || '').toLowerCase();
     const isUser = roleAttr.includes('user') || roleAttr.includes('human');
+    if (stats) stats.roleClassified++;
     const role: 'user' | 'assistant' = isUser ? 'user' : 'assistant';
 
     const contentEl =
@@ -192,6 +234,7 @@ export function extractVisibleTurns(selectors?: SiteSelectors): ExtractedMessage
     const { html, markdown } = cleanNodeToMarkdownAndHtml(contentEl, defaultJunk);
 
     if ((markdown && markdown.length > 3) || (html && html.length > 5)) {
+      if (stats) stats.cleaned++;
       const id = turn.getAttribute('data-message-id') || hashMessage(role, markdown || html);
       extracted.push({ id, role, content: markdown, htmlContent: html });
     }
@@ -284,23 +327,49 @@ export async function collectFullConversation(
     console.log('[Chat2PDF] scroll container found: window/document fallback');
   }
 
+  // Pipeline stage counters
+  const pipelineStats: PipelineDiagnostics = {
+    rawNodesFound: 0,
+    afterRoleClassification: 0,
+    afterCleaning: 0,
+    afterDedupe: 0,
+    afterMerge: 0,
+    final: 0,
+    rounds: 0,
+    elapsedMs: 0,
+    stageDetails: '',
+  };
+
   // Master map of collected messages keyed by stable ID
   const messageMap = new Map<string, ExtractedMessage>();
   const orderedIds: string[] = [];
 
-  function recordMessages(messages: ExtractedMessage[]) {
+  function recordMessages(messages: ExtractedMessage[], prepend = false) {
     messages.forEach((msg) => {
       const id = msg.id || hashMessage(msg.role, msg.content);
       if (!messageMap.has(id)) {
         messageMap.set(id, msg);
-        orderedIds.push(id);
+        if (prepend) {
+          orderedIds.unshift(id);
+        } else {
+          orderedIds.push(id);
+        }
+      } else {
+        // Update existing turn with richer content/attachments if available
+        const existing = messageMap.get(id)!;
+        if (!existing.htmlContent && msg.htmlContent) existing.htmlContent = msg.htmlContent;
+        if ((!existing.attachments || existing.attachments.length === 0) && msg.attachments) {
+          existing.attachments = msg.attachments;
+        }
       }
     });
   }
 
+  const turnStats: ExtractTurnsStats = { rawNodes: 0, roleClassified: 0, cleaned: 0 };
+
   // Initial pass at current position
   expandCollapsedContent(selectors);
-  const initialBatch = extractVisibleTurns(selectors);
+  const initialBatch = extractVisibleTurns(selectors, turnStats);
   recordMessages(initialBatch);
   console.log(`[Chat2PDF] Initial scan count: ${messageMap.size} messages in ${Date.now() - startTime}ms`);
   if (onProgress) onProgress(messageMap.size, 'Scanning conversation...');
@@ -351,8 +420,8 @@ export async function collectFullConversation(
       await new Promise((resolve) => setTimeout(resolve, 300));
       expandCollapsedContent(selectors);
 
-      const batch = extractVisibleTurns(selectors);
-      recordMessages(batch);
+      const batch = extractVisibleTurns(selectors, turnStats);
+      recordMessages(batch, true);
 
       const batchDelta = messageMap.size - lastSize;
       console.log(
@@ -371,15 +440,13 @@ export async function collectFullConversation(
       }
     }
 
-    // Phase 2: Now that top is reached, step DOWNWARDS to capture full thread in strict chronological order
-    console.log('[Chat2PDF] Phase 2: Stepping downwards to ensure complete chronological capture...');
-    orderedIds.length = 0;
-    messageMap.clear();
+    // Phase 2: Now that top is reached, step DOWNWARDS to capture remaining thread without clearing earlier history!
+    console.log('[Chat2PDF] Phase 2: Stepping downwards to ensure complete capture...');
 
     scrollContainer.scrollTop = 0;
     await new Promise((resolve) => setTimeout(resolve, 300));
     expandCollapsedContent(selectors);
-    recordMessages(extractVisibleTurns(selectors));
+    recordMessages(extractVisibleTurns(selectors, turnStats), false);
 
     let atBottomRounds = 0;
     while (atBottomRounds < 2 && Date.now() - startTime < MAX_TIME_MS) {
@@ -393,9 +460,9 @@ export async function collectFullConversation(
       await new Promise((resolve) => setTimeout(resolve, 250));
       expandCollapsedContent(selectors);
 
-      const batch = extractVisibleTurns(selectors);
+      const batch = extractVisibleTurns(selectors, turnStats);
       const prevTotal = messageMap.size;
-      recordMessages(batch);
+      recordMessages(batch, false);
       const batchDelta = messageMap.size - prevTotal;
 
       console.log(
@@ -420,15 +487,35 @@ export async function collectFullConversation(
 
   activeCancellationToken = null;
   const elapsed = Date.now() - startTime;
+
+  // Final pipeline calculations and logging
+  pipelineStats.rawNodesFound = turnStats.rawNodes;
+  pipelineStats.afterRoleClassification = turnStats.roleClassified;
+  pipelineStats.afterCleaning = turnStats.cleaned;
+  pipelineStats.afterDedupe = messageMap.size;
+  pipelineStats.afterMerge = messageMap.size;
+  pipelineStats.final = messageMap.size;
+  pipelineStats.rounds = round;
+  pipelineStats.elapsedMs = elapsed;
+  pipelineStats.stageDetails = `raw=${pipelineStats.rawNodesFound} -> role=${pipelineStats.afterRoleClassification} -> cleaned=${pipelineStats.afterCleaning} -> deduped=${pipelineStats.afterDedupe} -> merged=${pipelineStats.afterMerge} -> final=${pipelineStats.final}`;
+
+  console.log(`[Chat2PDF] Pipeline stage counts: ${pipelineStats.stageDetails}`);
+  console.log(`[Chat2PDF] Stage 1 (Raw nodes found): ${pipelineStats.rawNodesFound}`);
+  console.log(`[Chat2PDF] Stage 2 (After role classification): ${pipelineStats.afterRoleClassification}`);
+  console.log(`[Chat2PDF] Stage 3 (After cleaning): ${pipelineStats.afterCleaning}`);
+  console.log(`[Chat2PDF] Stage 4 (After dedupe): ${pipelineStats.afterDedupe}`);
+  console.log(`[Chat2PDF] Stage 5 (After merge): ${pipelineStats.afterMerge}`);
+  console.log(`[Chat2PDF] Stage 6 (Final count): ${pipelineStats.final}`);
   console.log(`[Chat2PDF] Extraction finished in ${elapsed}ms: rounds=${round}, total messages=${messageMap.size}`);
 
-  const finalMessages = orderedIds.map((id) => messageMap.get(id)!);
+  const finalMessages = orderedIds.map((id) => messageMap.get(id)!).filter(Boolean);
 
   return {
     title,
     source: hostname,
     messages: finalMessages,
     themeSnapshot,
+    diagnostics: pipelineStats,
   };
 }
 

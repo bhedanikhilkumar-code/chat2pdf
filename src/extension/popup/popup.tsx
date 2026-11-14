@@ -98,17 +98,20 @@ const Popup: React.FC = () => {
         }
 
         if (response?.success && response.data) {
-          const { messages, title, source } = response.data;
+          const { messages, title, source, diagnostics } = response.data;
+          const diagStr = diagnostics ? `\nPipeline Diagnostics: ${diagnostics.stageDetails} (elapsed: ${diagnostics.elapsedMs}ms)` : '';
+
           if (!messages || messages.length === 0) {
             console.warn('[Chat2PDF] Received empty message array from extractor');
             setFriendlyError('No conversation detected. Ensure you are on an active chat thread with loaded messages.');
-            setRawErrorDetails(`[Chat2PDF Error Details]\nType: Empty Conversation\nHost: ${currentHost}\nTitle: ${title}\nTime: ${new Date().toISOString()}`);
+            setRawErrorDetails(`[Chat2PDF Error Details]\nType: Empty Conversation\nHost: ${currentHost}\nTitle: ${title}${diagStr}\nTime: ${new Date().toISOString()}`);
             setLoading(false);
             return;
           }
 
           setMessageCount(messages.length);
-          console.log(`[Chat2PDF] Full chat extracted successfully: ${messages.length} messages`);
+          console.log(`[Chat2PDF] Full chat extracted successfully: ${messages.length} messages.${diagStr}`);
+          setRawErrorDetails(`[Chat2PDF Pipeline Info]\nHost: ${currentHost}\nExtracted: ${messages.length} messages${diagStr}\nTime: ${new Date().toISOString()}`);
 
           // Sanity check: verify plausible role alternation
           let nonAlternating = 0;

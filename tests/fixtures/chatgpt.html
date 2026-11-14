@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Concurrency Deep Dive</title>
+</head>
+<body class="bg-gray-900 text-white m-0 p-0">
+  <div class="flex h-screen flex-col">
+    <h1 class="p-4 border-b text-xl">Concurrency Deep Dive</h1>
+    <div class="react-scroll-to-bottom--css overflow-y-auto flex-1 p-4" style="height: 600px; max-height: 600px;">
+      
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-1">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="user" data-message-id="chatgpt-msg-1" class="relative flex w-full min-w-0 flex-col">
+              <div class="user-turn-content">User question #1: Can you explain concurrency models in modern runtime engines?</div>
+              
+              <div class="attachment-chip flex items-center gap-2 mt-2 p-1.5 border rounded" data-testid="attachment-file">
+                <span class="file-title">benchmark.csv</span>
+                <span class="text-xs text-gray-400">(42 KB)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-2">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="assistant" data-message-id="chatgpt-msg-2" class="relative flex w-full min-w-0 flex-col">
+              <div class="markdown prose w-full break-words">
+                <p>ChatGPT turn #2: Concurrency models manage execution context and event pipelines efficiently.</p>
+                <pre><code class="language-python">async def worker(queue: asyncio.Queue) -> None:
+    while True:
+        task = await queue.get()
+        await process(task)
+        queue.task_done()</code></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-3">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="user" data-message-id="chatgpt-msg-3" class="relative flex w-full min-w-0 flex-col">
+              <div class="user-turn-content">User question #3: Can you explain concurrency models in modern runtime engines?</div>
+              
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-4">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="assistant" data-message-id="chatgpt-msg-4" class="relative flex w-full min-w-0 flex-col">
+              <div class="markdown prose w-full break-words">
+                <p>ChatGPT turn #4: Concurrency models manage execution context and event pipelines efficiently.</p>
+                
+        <table>
+          <thead><tr><th>Runtime</th><th>Model</th><th>Event Loop</th></tr></thead>
+          <tbody><tr><td>Node.js</td><td>Single-thread libuv</td><td>Yes</td></tr><tr><td>Go</td><td>M:N Goroutines</td><td>Work stealing</td></tr></tbody>
+        </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-5">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="user" data-message-id="chatgpt-msg-5" class="relative flex w-full min-w-0 flex-col">
+              <div class="user-turn-content">User question #5: Can you explain concurrency models in modern runtime engines?</div>
+              
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-6">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="assistant" data-message-id="chatgpt-msg-6" class="relative flex w-full min-w-0 flex-col">
+              <div class="markdown prose w-full break-words">
+                <p>ChatGPT turn #6: Concurrency models manage execution context and event pipelines efficiently.</p>
+                
+        <ol>
+          <li>Asynchronous cooperative scheduling</li>
+          <li>Preemptive OS threads</li>
+          <li>Software transactional memory</li>
+        </ol>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-7">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="user" data-message-id="chatgpt-msg-7" class="relative flex w-full min-w-0 flex-col">
+              <div class="user-turn-content">User question #7: Can you explain concurrency models in modern runtime engines?</div>
+              
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-8">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="assistant" data-message-id="chatgpt-msg-8" class="relative flex w-full min-w-0 flex-col">
+              <div class="markdown prose w-full break-words">
+                <p>ChatGPT turn #8: Concurrency models manage execution context and event pipelines efficiently.</p>
+                
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-9">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="user" data-message-id="chatgpt-msg-9" class="relative flex w-full min-w-0 flex-col">
+              <div class="user-turn-content">User question #9: Can you explain concurrency models in modern runtime engines?</div>
+              
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-10">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="assistant" data-message-id="chatgpt-msg-10" class="relative flex w-full min-w-0 flex-col">
+              <div class="markdown prose w-full break-words">
+                <p>ChatGPT turn #10: Concurrency models manage execution context and event pipelines efficiently.</p>
+                
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-11">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="user" data-message-id="chatgpt-msg-11" class="relative flex w-full min-w-0 flex-col">
+              <div class="user-turn-content">User question #11: Can you explain concurrency models in modern runtime engines?</div>
+              
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-12">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="assistant" data-message-id="chatgpt-msg-12" class="relative flex w-full min-w-0 flex-col">
+              <div class="markdown prose w-full break-words">
+                <p>ChatGPT turn #12: Concurrency models manage execution context and event pipelines efficiently.</p>
+                
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-13">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="user" data-message-id="chatgpt-msg-13" class="relative flex w-full min-w-0 flex-col">
+              <div class="user-turn-content">User question #13: Can you explain concurrency models in modern runtime engines?</div>
+              
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-14">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="assistant" data-message-id="chatgpt-msg-14" class="relative flex w-full min-w-0 flex-col">
+              <div class="markdown prose w-full break-words">
+                <p>ChatGPT turn #14: Concurrency models manage execution context and event pipelines efficiently.</p>
+                
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-15">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="user" data-message-id="chatgpt-msg-15" class="relative flex w-full min-w-0 flex-col">
+              <div class="user-turn-content">User question #15: Can you explain concurrency models in modern runtime engines?</div>
+              
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-16">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="assistant" data-message-id="chatgpt-msg-16" class="relative flex w-full min-w-0 flex-col">
+              <div class="markdown prose w-full break-words">
+                <p>ChatGPT turn #16: Concurrency models manage execution context and event pipelines efficiently.</p>
+                
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-17">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="user" data-message-id="chatgpt-msg-17" class="relative flex w-full min-w-0 flex-col">
+              <div class="user-turn-content">User question #17: Can you explain concurrency models in modern runtime engines?</div>
+              
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-18">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="assistant" data-message-id="chatgpt-msg-18" class="relative flex w-full min-w-0 flex-col">
+              <div class="markdown prose w-full break-words">
+                <p>ChatGPT turn #18: Concurrency models manage execution context and event pipelines efficiently.</p>
+                
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-19">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="user" data-message-id="chatgpt-msg-19" class="relative flex w-full min-w-0 flex-col">
+              <div class="user-turn-content">User question #19: Can you explain concurrency models in modern runtime engines?</div>
+              
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-20">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="assistant" data-message-id="chatgpt-msg-20" class="relative flex w-full min-w-0 flex-col">
+              <div class="markdown prose w-full break-words">
+                <p>ChatGPT turn #20: Concurrency models manage execution context and event pipelines efficiently.</p>
+                
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-21">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="user" data-message-id="chatgpt-msg-21" class="relative flex w-full min-w-0 flex-col">
+              <div class="user-turn-content">User question #21: Can you explain concurrency models in modern runtime engines?</div>
+              
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-22">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="assistant" data-message-id="chatgpt-msg-22" class="relative flex w-full min-w-0 flex-col">
+              <div class="markdown prose w-full break-words">
+                <p>ChatGPT turn #22: Concurrency models manage execution context and event pipelines efficiently.</p>
+                
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-23">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="user" data-message-id="chatgpt-msg-23" class="relative flex w-full min-w-0 flex-col">
+              <div class="user-turn-content">User question #23: Can you explain concurrency models in modern runtime engines?</div>
+              
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-24">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="assistant" data-message-id="chatgpt-msg-24" class="relative flex w-full min-w-0 flex-col">
+              <div class="markdown prose w-full break-words">
+                <p>ChatGPT turn #24: Concurrency models manage execution context and event pipelines efficiently.</p>
+                
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-25">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="user" data-message-id="chatgpt-msg-25" class="relative flex w-full min-w-0 flex-col">
+              <div class="user-turn-content">User question #25: Can you explain concurrency models in modern runtime engines?</div>
+              
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-26">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="assistant" data-message-id="chatgpt-msg-26" class="relative flex w-full min-w-0 flex-col">
+              <div class="markdown prose w-full break-words">
+                <p>ChatGPT turn #26: Concurrency models manage execution context and event pipelines efficiently.</p>
+                
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-27">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="user" data-message-id="chatgpt-msg-27" class="relative flex w-full min-w-0 flex-col">
+              <div class="user-turn-content">User question #27: Can you explain concurrency models in modern runtime engines?</div>
+              
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-28">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="assistant" data-message-id="chatgpt-msg-28" class="relative flex w-full min-w-0 flex-col">
+              <div class="markdown prose w-full break-words">
+                <p>ChatGPT turn #28: Concurrency models manage execution context and event pipelines efficiently.</p>
+                
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-29">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="user" data-message-id="chatgpt-msg-29" class="relative flex w-full min-w-0 flex-col">
+              <div class="user-turn-content">User question #29: Can you explain concurrency models in modern runtime engines?</div>
+              
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="w-full text-token-text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px]" data-testid="conversation-turn-30">
+        <div class="m-auto text-base py-[18px] px-3 md:px-4 w-full">
+          <div class="mx-auto flex flex-1 gap-3 text-base md:max-w-3xl">
+            <div data-message-author-role="assistant" data-message-id="chatgpt-msg-30" class="relative flex w-full min-w-0 flex-col">
+              <div class="markdown prose w-full break-words">
+                <p>ChatGPT turn #30: Concurrency models manage execution context and event pipelines efficiently.</p>
+                
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+</body>
+</html>

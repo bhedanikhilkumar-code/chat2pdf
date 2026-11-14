@@ -1,17 +1,17 @@
 ﻿import type { SiteSelectors } from '@core/parser/types';
 
 export const claudeSelectors: SiteSelectors = {
-  messageContainer: '[class*=conversation], [data-testid=chat-message-row], div[data-testid*=user-message], div[data-testid*=assistant-message], div[class*=ChatMessage_container], div[class*=font-claude-message]',
-  userMessage: '[class*=human], [data-testid*=user-message], [class*=font-user-message], div[class*=user]',
-  assistantMessage: '[class*=assistant], [data-testid*=assistant-message], [class*=font-claude-message], div[class*=claude]',
-  messageContent: '[class*=message-content], [class*=markdown], .prose, div[class*=progressive-markdown]',
-  chatTitle: '[class*=conversation-title], [data-testid=conversation-title], h1',
-  scrollContainer: 'div[class*="overflow-y-auto"], [class*="scroll-container"], main',
+  // Target individual message turns directly, never parent conversation wrappers
+  messageContainer: '[data-message-author-role], div.font-user-message, div.font-claude-message, [data-is-streaming], div[data-testid*="user-message"], div[data-testid*="assistant-message"]',
+  userMessage: '[data-message-author-role="user"], [class*="font-user-message"], [data-testid*="user-message"], [class*="human"]',
+  assistantMessage: '[data-message-author-role="assistant"], [class*="font-claude-message"], [data-testid*="assistant-message"], [class*="progressive-markdown"], [class*="claude"]',
+  messageContent: '[class*="font-claude-message"], [class*="font-user-message"], [class*="progressive-markdown"], .prose, .markdown, [class*="message-content"]',
+  chatTitle: 'h1, [data-testid="conversation-title"], [class*="conversation-title"]',
+  scrollContainer: 'main.overflow-y-auto, div.overflow-y-auto, [class*="overflow-y-auto"], [class*="scroll-container"], main',
   loadEarlierButton: 'button[class*="load-older"], button[data-testid*="load-older"]',
   expandButtons: 'button[aria-label*="Expand"], button[aria-label*="Show more"]',
-  attachmentContainer: '[class*="FileChip"], [class*="Attachment"], [class*="file-pill"]',
+  attachmentContainer: '.file-chip, [class*="FileChip"], [class*="Attachment"], [class*="file-pill"], [aria-label*="Attachment"]',
   junkSelectors: [
-
     'button',
     '.copy-button',
     '.feedback-buttons',
