@@ -97,7 +97,7 @@ export const ExportStep: React.FC<ExportStepProps> = ({
       id: 'md',
       title: 'Markdown (.md)',
       icon: <FileCode className="w-5 h-5 text-purple-500" />,
-      desc: 'GitHub Flavored Markdown preserving all blocks & tables',
+      desc: 'Standard Markdown preserving all blocks & tables',
     },
     {
       id: 'txt',
