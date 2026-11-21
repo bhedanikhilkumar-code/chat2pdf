@@ -2,7 +2,21 @@ import React, { useState, useRef, useEffect } from 'react';
 import type { Conversation, FilterMode } from '../../core/parser/types';
 import { filterMessages } from '../../core/parser/filters';
 import { ChatView } from './ChatView';
-import { ArrowLeft, ArrowRight, Search, X, Clock, FileText, Copy, CheckCircle2, Keyboard } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  ArrowDown,
+  Search,
+  X,
+  Clock,
+  FileText,
+  Copy,
+  CheckCircle2,
+  Keyboard,
+} from 'lucide-react';
+
+type ContentTypeFilter = 'all' | 'code' | 'files';
 
 interface PreviewStepProps {
   conversation: Conversation;
@@ -21,6 +35,7 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
 }) => {
   const [excludedIndices, setExcludedIndices] = useState<Set<number>>(new Set());
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [contentTypeFilter, setContentTypeFilter] = useState<ContentTypeFilter>('all');
   const [copiedFiltered, setCopiedFiltered] = useState<boolean>(false);
   const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable');
   const [showShortcutsModal, setShowShortcutsModal] = useState<boolean>(false);
@@ -101,11 +116,43 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
   const activeMessages = filteredMessages.filter((m) => !excludedIndices.has(m.index));
   const activeCount = conversation.messages.length - excludedIndices.size;
 
-  // Search filter
+  // Search & content type filters
   const queryTrimmed = searchQuery.trim().toLowerCase();
-  const displayedMessages = queryTrimmed
+  let displayedMessages = queryTrimmed
     ? filteredMessages.filter((m) => (m.content || '').toLowerCase().includes(queryTrimmed))
     : filteredMessages;
+
+  const codeMessagesCount = filteredMessages.filter((m) =>
+    m.content.includes('```') || (m.htmlContent && m.htmlContent.includes('<code'))
+  ).length;
+
+  const filesMessagesCount = filteredMessages.filter((m) =>
+    Boolean(m.attachments && m.attachments.length > 0)
+  ).length;
+
+  if (contentTypeFilter === 'code') {
+    displayedMessages = displayedMessages.filter((m) =>
+      m.content.includes('```') || (m.htmlContent && m.htmlContent.includes('<code'))
+    );
+  } else if (contentTypeFilter === 'files') {
+    displayedMessages = displayedMessages.filter((m) =>
+      Boolean(m.attachments && m.attachments.length > 0)
+    );
+  }
+
+  const scrollToTop = () => {
+    const container = document.querySelector('.chat-view-container');
+    if (container) {
+      container.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const scrollToBottom = () => {
+    const container = document.querySelector('.chat-view-container');
+    if (container) {
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+    }
+  };
 
   // Stats
   const includedMessages = conversation.messages.filter((m) => !excludedIndices.has(m.index));
@@ -234,6 +281,29 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
             </button>
           </div>
 
+          <div className="inline-flex rounded-xl bg-gray-200/70 dark:bg-gray-800/80 p-0.5 text-xs font-medium">
+            <button
+              type="button"
+              onClick={scrollToTop}
+              className="px-2 py-1 rounded-lg text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-white/80 dark:hover:bg-gray-700 transition-all cursor-pointer flex items-center gap-0.5"
+              title="Scroll to top of preview"
+              aria-label="Scroll to top of preview"
+            >
+              <ArrowUp className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Top</span>
+            </button>
+            <button
+              type="button"
+              onClick={scrollToBottom}
+              className="px-2 py-1 rounded-lg text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-white/80 dark:hover:bg-gray-700 transition-all cursor-pointer flex items-center gap-0.5"
+              title="Scroll to bottom of preview"
+              aria-label="Scroll to bottom of preview"
+            >
+              <ArrowDown className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Bottom</span>
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={() => setShowShortcutsModal(true)}
@@ -276,6 +346,11 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
             placeholder="Search keywords within conversation (Press '/' to focus)..."
             className="w-full pl-10 pr-10 py-2 text-xs sm:text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-xs"
           />
+          {queryTrimmed && (
+            <span className="absolute right-9 top-1/2 -translate-y-1/2 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 pointer-events-none">
+              {displayedMessages.length} match{displayedMessages.length === 1 ? '' : 'es'}
+            </span>
+          )}
           {searchQuery && (
             <button
               type="button"
@@ -339,11 +414,46 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
         </div>
       </div>
 
+      {/* Content-type quick filter chips */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="text-xs text-gray-500 dark:text-gray-400 font-medium mr-1">Content type:</span>
+        {[
+          { id: 'all', label: 'All Content', count: filteredMessages.length },
+          { id: 'code', label: 'With Code', count: codeMessagesCount },
+          { id: 'files', label: 'With Attachments', count: filesMessagesCount },
+        ].map((cf) => (
+          <button
+            key={cf.id}
+            type="button"
+            onClick={() => setContentTypeFilter(cf.id as ContentTypeFilter)}
+            className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+              contentTypeFilter === cf.id
+                ? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 font-semibold shadow-xs'
+                : 'border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100/60 dark:hover:bg-gray-800'
+            }`}
+          >
+            {cf.label} ({cf.count})
+          </button>
+        ))}
+      </div>
+
       {/* Preview Container */}
       <div className="border border-gray-200/90 dark:border-gray-800 rounded-2xl shadow-xs overflow-hidden">
         {displayedMessages.length === 0 ? (
-          <div className="py-12 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-            No messages matched your search query &quot;{searchQuery}&quot;.
+          <div className="py-12 px-4 text-center">
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+              No messages matched your current search or content filter.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('');
+                setContentTypeFilter('all');
+              }}
+              className="mt-3 text-xs px-3 py-1.5 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 hover:bg-blue-100 font-medium transition-all cursor-pointer"
+            >
+              Reset search & filters
+            </button>
           </div>
         ) : (
           <ChatView

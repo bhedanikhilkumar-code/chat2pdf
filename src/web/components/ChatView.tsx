@@ -350,6 +350,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         color: resolved.mutedText,
                       }}
                     >
+                      <span style={{ fontSize: '10px', color: resolved.mutedText }}>
+                        {(m.content || '').trim().split(/\s+/).filter(Boolean).length} words
+                      </span>
                       {isExcluded && (
                         <span
                           style={{
@@ -549,6 +552,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       }}
                     >
                       {getSiteDisplayName(resolved.source)}
+                    </span>
+                    <span style={{ fontSize: '10px', color: resolved.mutedText }}>
+                      {(m.content || '').trim().split(/\s+/).filter(Boolean).length} words
                     </span>
                     {isExcluded && (
                       <span

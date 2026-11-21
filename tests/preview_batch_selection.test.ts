@@ -74,4 +74,40 @@ describe('Preview Step Batch Selection & Exclusion Controls', () => {
     const remaining = sampleChat.messages.filter((m) => !excludedIndices.has(m.index));
     expect(remaining.length).toBe(6);
   });
+
+  it('correctly filters messages by content type (code vs files)', () => {
+    const complexMessages: ChatMessage[] = [
+      { index: 0, role: 'user', content: 'Here is my python code snippet' },
+      { index: 1, role: 'assistant', content: '```python\nprint("hello")\n```' },
+      {
+        index: 2,
+        role: 'user',
+        content: 'Check this diagram',
+        attachments: [{ name: 'architecture.png', size: '24KB' }],
+      },
+      { index: 3, role: 'assistant', content: 'Looks great!' },
+    ];
+
+    const codeMessages = complexMessages.filter((m) =>
+      m.content.includes('```') || (m.htmlContent && m.htmlContent.includes('<code'))
+    );
+    expect(codeMessages.length).toBe(1);
+    expect(codeMessages[0].index).toBe(1);
+
+    const filesMessages = complexMessages.filter((m) =>
+      Boolean(m.attachments && m.attachments.length > 0)
+    );
+    expect(filesMessages.length).toBe(1);
+    expect(filesMessages[0].index).toBe(2);
+  });
+
+  it('correctly calculates word counts for each message turn', () => {
+    const msg: ChatMessage = {
+      index: 0,
+      role: 'user',
+      content: 'Hello world this is a test turn with eight words',
+    };
+    const words = msg.content.trim().split(/\s+/).filter(Boolean).length;
+    expect(words).toBe(10);
+  });
 });
