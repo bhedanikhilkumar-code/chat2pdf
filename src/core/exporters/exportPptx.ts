@@ -353,11 +353,18 @@ export function buildPptxPresentation(
   return pptx;
 }
 
+export async function buildPptxBlob(
+  conversation: Conversation,
+  options: ExportOptions
+): Promise<Blob> {
+  const pptx = buildPptxPresentation(conversation, options);
+  return (await pptx.write({ outputType: 'blob' })) as Blob;
+}
+
 export async function exportPptx(
   conversation: Conversation,
   options: ExportOptions
 ): Promise<void> {
-  const pptx = buildPptxPresentation(conversation, options);
-  const blob = (await pptx.write({ outputType: 'blob' })) as Blob;
+  const blob = await buildPptxBlob(conversation, options);
   await downloadBlob(blob, `${options.fileName || conversation.title || 'chat'}.pptx`);
 }

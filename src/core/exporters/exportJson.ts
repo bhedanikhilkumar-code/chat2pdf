@@ -3,10 +3,10 @@ import { filterMessages } from '../parser/filters';
 import { WATERMARK_TEXT } from '../branding';
 import { downloadBlob } from './downloadHelper';
 
-export async function exportJson(
+export function buildJsonContent(
   conversation: Conversation,
   options: ExportOptions
-): Promise<void> {
+): string {
   const messages = filterMessages(conversation.messages, options.filterMode);
 
   const exportData = {
@@ -25,7 +25,15 @@ export async function exportJson(
     watermark: WATERMARK_TEXT,
   };
 
-  const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+  return JSON.stringify(exportData, null, 2);
+}
+
+export async function exportJson(
+  conversation: Conversation,
+  options: ExportOptions
+): Promise<void> {
+  const json = buildJsonContent(conversation, options);
+  const blob = new Blob([json], {
     type: 'application/json;charset=utf-8',
   });
   await downloadBlob(blob, `${options.fileName || conversation.title || 'chat'}.json`);

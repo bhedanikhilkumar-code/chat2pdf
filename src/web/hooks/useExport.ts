@@ -11,6 +11,7 @@ import {
   exportHandwriting,
   exportJson,
   exportHtml,
+  exportBundleZip,
 } from '@core/index';
 
 export function useExport() {
@@ -30,11 +31,14 @@ export function useExport() {
       setProgressText(null);
       setActiveFormat(options.format);
 
-      const targetFileName = `${options.fileName || conversation.title || 'chat'}.${
-        options.format === 'handwriting'
-          ? (options.handwriting?.exportAs || 'pdf')
-          : options.format
-      }`;
+      const targetFileName =
+        options.format === 'zip'
+          ? `${options.fileName || conversation.title || 'chat'}-bundle.zip`
+          : `${options.fileName || conversation.title || 'chat'}.${
+              options.format === 'handwriting'
+                ? options.handwriting?.exportAs || 'pdf'
+                : options.format
+            }`;
 
       try {
         switch (options.format) {
@@ -70,6 +74,11 @@ export function useExport() {
             break;
           case 'html':
             await exportHtml(conversation, options);
+            break;
+          case 'zip':
+            await exportBundleZip(conversation, options, (status) => {
+              setProgressText(status);
+            });
             break;
           default:
             throw new Error(`Unsupported format: ${options.format}`);

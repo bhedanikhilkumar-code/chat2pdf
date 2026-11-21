@@ -37,7 +37,7 @@ export interface Conversation {
   themeSnapshot?: ThemeSnapshot;
 }
 
-export type ExportFormat = 'pdf' | 'pptx' | 'csv' | 'txt' | 'md' | 'jpg' | 'png' | 'docx' | 'handwriting' | 'json' | 'html';
+export type ExportFormat = 'pdf' | 'pptx' | 'csv' | 'txt' | 'md' | 'jpg' | 'png' | 'docx' | 'handwriting' | 'json' | 'html' | 'zip';
 
 export type PageStyle = 'match' | 'light' | 'dark';
 

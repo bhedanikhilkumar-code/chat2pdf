@@ -12,10 +12,10 @@ interface CsvRow {
   attachments?: string;
 }
 
-export async function exportCsv(
+export function buildCsvContent(
   conversation: Conversation,
   options: ExportOptions
-): Promise<void> {
+): string {
   const messages = filterMessages(conversation.messages, options.filterMode);
 
   const rows: CsvRow[] = messages.map((msg, i) => ({
@@ -38,11 +38,17 @@ export async function exportCsv(
     attachments: '',
   });
 
-  const csv = Papa.unparse(rows, {
+  return Papa.unparse(rows, {
     columns: ['index', 'role', 'message', 'attachments'],
     header: true,
   });
+}
 
+export async function exportCsv(
+  conversation: Conversation,
+  options: ExportOptions
+): Promise<void> {
+  const csv = buildCsvContent(conversation, options);
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   await downloadBlob(blob, `${options.fileName || conversation.title || 'chat'}.csv`);
 }

@@ -9,18 +9,14 @@ const ROLE_EMOJI: Record<string, string> = {
   system: '⚙️',
 };
 
-export async function exportMarkdown(
+export function buildMarkdownContent(
   conversation: Conversation,
   options: ExportOptions
-): Promise<void> {
+): string {
   const messages = filterMessages(conversation.messages, options.filterMode);
 
   if (messages.length === 0) {
-    const blob = new Blob([`*No messages to export.*\n\n---\n*${WATERMARK_TEXT}*\n`], {
-      type: 'text/markdown;charset=utf-8',
-    });
-    await downloadBlob(blob, `${options.fileName || conversation.title || 'chat'}.md`);
-    return;
+    return `*No messages to export.*\n\n---\n*${WATERMARK_TEXT}*\n`;
   }
 
   const parts: string[] = [];
@@ -62,7 +58,14 @@ export async function exportMarkdown(
   parts.push(`*${WATERMARK_TEXT}*`);
   parts.push('');
 
-  const markdown = parts.join('\n');
+  return parts.join('\n');
+}
+
+export async function exportMarkdown(
+  conversation: Conversation,
+  options: ExportOptions
+): Promise<void> {
+  const markdown = buildMarkdownContent(conversation, options);
   const blob = new Blob([markdown], {
     type: 'text/markdown;charset=utf-8',
   });

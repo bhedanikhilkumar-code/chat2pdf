@@ -15,6 +15,18 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#39;');
 }
 
+function safeSanitize(html: string): string {
+  try {
+    if (typeof DOMPurify !== 'undefined') {
+      const purify = (DOMPurify as any).default || DOMPurify;
+      if (typeof purify.sanitize === 'function') {
+        return purify.sanitize(html);
+      }
+    }
+  } catch (e) {}
+  return html;
+}
+
 function getSiteDisplayName(src: string): string {
   switch (src) {
     case 'chatgpt':
@@ -53,10 +65,10 @@ function getAssistantInitial(src: string): string {
   }
 }
 
-export async function exportHtml(
+export function buildHtmlContent(
   conversation: Conversation,
   options: ExportOptions
-): Promise<void> {
+): string {
   const resolved = resolveTheme(conversation.themeSnapshot, options.pageStyle, conversation.source);
   const messages = filterMessages(conversation.messages, options.filterMode);
 
@@ -67,8 +79,8 @@ export async function exportHtml(
   const renderedTurns = messages.map((m: ChatMessage) => {
     const isUser = m.role === 'user';
     const contentHtml = m.htmlContent
-      ? DOMPurify.sanitize(m.htmlContent)
-      : DOMPurify.sanitize(marked.parse(m.content, { breaks: true, gfm: true }) as string);
+      ? safeSanitize(m.htmlContent)
+      : safeSanitize(marked.parse(m.content, { breaks: true, gfm: true }) as string);
 
     const attachmentsHtml =
       m.attachments && m.attachments.length > 0
@@ -319,6 +331,14 @@ export async function exportHtml(
 </body>
 </html>`;
 
+  return fullHtml;
+}
+
+export async function exportHtml(
+  conversation: Conversation,
+  options: ExportOptions
+): Promise<void> {
+  const fullHtml = buildHtmlContent(conversation, options);
   const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
   await downloadBlob(blob, `${options.fileName || conversation.title || 'chat'}.html`);
 }

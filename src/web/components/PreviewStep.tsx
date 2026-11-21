@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import type { Conversation, FilterMode } from '../../core/parser/types';
 import { filterMessages } from '../../core/parser/filters';
 import { ChatView } from './ChatView';
-import { ArrowLeft, ArrowRight, Search, X, Clock, FileText } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Search, X, Clock, FileText, Copy, CheckCircle2 } from 'lucide-react';
 
 interface PreviewStepProps {
   conversation: Conversation;
@@ -21,7 +21,35 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
 }) => {
   const [excludedIndices, setExcludedIndices] = useState<Set<number>>(new Set());
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [copiedFiltered, setCopiedFiltered] = useState<boolean>(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let activeTurnIdx = -1;
+    const handleNavigation = (e: KeyboardEvent) => {
+      if (
+        document.activeElement?.tagName === 'INPUT' ||
+        document.activeElement?.tagName === 'TEXTAREA'
+      ) {
+        return;
+      }
+      if (e.key === 'j' || e.key === 'J') {
+        const turns = Array.from(document.querySelectorAll('[id^="chat-turn-"]'));
+        if (turns.length === 0) return;
+        e.preventDefault();
+        activeTurnIdx = (activeTurnIdx + 1) % turns.length;
+        turns[activeTurnIdx]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else if (e.key === 'k' || e.key === 'K') {
+        const turns = Array.from(document.querySelectorAll('[id^="chat-turn-"]'));
+        if (turns.length === 0) return;
+        e.preventDefault();
+        activeTurnIdx = (activeTurnIdx - 1 + turns.length) % turns.length;
+        turns[activeTurnIdx]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    };
+    window.addEventListener('keydown', handleNavigation);
+    return () => window.removeEventListener('keydown', handleNavigation);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -72,6 +100,22 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
     return acc + (m.content ? m.content.trim().split(/\s+/).filter(Boolean).length : 0);
   }, 0);
   const readingMinutes = Math.max(1, Math.ceil(totalWords / 200));
+
+  const handleCopyFiltered = async () => {
+    const lines: string[] = [];
+    lines.push(`# ${conversation.title || 'Conversation'}\n`);
+    displayedMessages.forEach((m) => {
+      lines.push(`### ${m.role === 'user' ? '👤 User' : '🤖 Assistant'}\n\n${m.content}\n`);
+      if (m.attachments && m.attachments.length > 0) {
+        lines.push(`*Attachments: ${m.attachments.map((a) => a.name).join(', ')}*\n`);
+      }
+      lines.push('---\n');
+    });
+    lines.push(`*Exported with Chat2PDF • chat2pdf.app*\n`);
+    await navigator.clipboard.writeText(lines.join('\n'));
+    setCopiedFiltered(true);
+    setTimeout(() => setCopiedFiltered(false), 2000);
+  };
 
   const handleContinue = () => {
     if (excludedIndices.size > 0) {
@@ -168,16 +212,37 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
           )}
         </div>
 
-        {excludedIndices.size > 0 && (
+        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
-            onClick={() => setExcludedIndices(new Set())}
-            className="text-xs px-3 py-2 rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 hover:bg-red-100/70 font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1.5 justify-center"
-            title="Restore all excluded turns"
+            onClick={handleCopyFiltered}
+            className="text-xs px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/80 font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1.5 justify-center shadow-xs"
+            title="Copy displayed messages formatted as markdown to clipboard"
           >
-            <span>Restore all ({excludedIndices.size})</span>
+            {copiedFiltered ? (
+              <>
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Copied!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5 text-gray-400" />
+                <span>Copy View</span>
+              </>
+            )}
           </button>
-        )}
+
+          {excludedIndices.size > 0 && (
+            <button
+              type="button"
+              onClick={() => setExcludedIndices(new Set())}
+              className="text-xs px-3 py-2 rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 hover:bg-red-100/70 font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1.5 justify-center"
+              title="Restore all excluded turns"
+            >
+              <span>Restore all ({excludedIndices.size})</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Preview Container */}

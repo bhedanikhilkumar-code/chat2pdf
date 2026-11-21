@@ -339,11 +339,18 @@ export function buildDocxDocument(
   });
 }
 
+export async function buildDocxBlob(
+  conversation: Conversation,
+  options: ExportOptions
+): Promise<Blob> {
+  const doc = buildDocxDocument(conversation, options);
+  return await Packer.toBlob(doc);
+}
+
 export async function exportDocx(
   conversation: Conversation,
   options: ExportOptions
 ): Promise<void> {
-  const doc = buildDocxDocument(conversation, options);
-  const blob = await Packer.toBlob(doc);
+  const blob = await buildDocxBlob(conversation, options);
   await downloadBlob(blob, `${options.fileName || conversation.title || 'chat'}.docx`);
 }

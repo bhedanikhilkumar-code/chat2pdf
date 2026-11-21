@@ -10,18 +10,14 @@ const ROLE_LABELS: Record<string, string> = {
   system: 'System',
 };
 
-export async function exportTxt(
+export function buildTxtContent(
   conversation: Conversation,
   options: ExportOptions
-): Promise<void> {
+): string {
   const messages = filterMessages(conversation.messages, options.filterMode);
 
   if (messages.length === 0) {
-    const blob = new Blob([`No messages to export.\n\n---\n${WATERMARK_TEXT}\n`], {
-      type: 'text/plain;charset=utf-8',
-    });
-    await downloadBlob(blob, `${options.fileName || conversation.title || 'chat'}.txt`);
-    return;
+    return `No messages to export.\n\n---\n${WATERMARK_TEXT}\n`;
   }
 
   const parts: string[] = [];
@@ -48,7 +44,14 @@ export async function exportTxt(
   parts.push(WATERMARK_TEXT);
   parts.push('');
 
-  const text = parts.join('\n');
+  return parts.join('\n');
+}
+
+export async function exportTxt(
+  conversation: Conversation,
+  options: ExportOptions
+): Promise<void> {
+  const text = buildTxtContent(conversation, options);
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
   await downloadBlob(blob, `${options.fileName || conversation.title || 'chat'}.txt`);
 }

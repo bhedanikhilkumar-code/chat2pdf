@@ -24,3 +24,4 @@ export { exportDocx } from './exporters/exportDocx';
 export { exportHandwriting } from './exporters/exportHandwriting';
 export { exportJson } from './exporters/exportJson';
 export { exportHtml } from './exporters/exportHtml';
+export { exportBundleZip } from './exporters/exportBundleZip';

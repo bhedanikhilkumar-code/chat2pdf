@@ -16,6 +16,7 @@ import {
   ChevronDown,
   ChevronUp,
   Printer,
+  Archive,
 } from 'lucide-react';
 
 interface ExportStepProps {
@@ -458,6 +459,17 @@ export const ExportStep: React.FC<ExportStepProps> = ({
           >
             <Printer className="w-4 h-4" />
             <span>Print</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleCardClick('zip')}
+            disabled={isExporting}
+            className="min-h-[44px] px-4 py-2.5 rounded-xl border border-blue-600/80 dark:border-blue-500/80 bg-blue-50/80 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60 font-semibold text-xs sm:text-sm transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            title="Download all formats (PDF, DOCX, PPTX, HTML, Markdown, JSON, TXT, CSV) in a single ZIP bundle"
+          >
+            <Archive className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <span>Download All (.zip)</span>
           </button>
 
           <button

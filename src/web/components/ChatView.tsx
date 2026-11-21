@@ -295,6 +295,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
               return (
                 <div
                   key={idx}
+                  id={`chat-turn-${turnIdx}`}
+                  data-turn-role="user"
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -468,6 +470,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
             return (
               <div
                 key={idx}
+                id={`chat-turn-${turnIdx}`}
+                data-turn-role="assistant"
                 style={{
                   display: 'flex',
                   flexDirection: 'column',

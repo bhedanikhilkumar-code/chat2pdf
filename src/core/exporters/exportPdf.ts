@@ -4,18 +4,28 @@ import type { Conversation, ExportOptions } from '../parser/types';
 import { buildPaginatedDom, PAGE_STYLES } from '../renderer/pageRenderer';
 import { downloadBlob } from './downloadHelper';
 
-export async function exportPdf(
+export async function buildPdfBlob(
   conversation: Conversation,
   options: ExportOptions,
   onProgress?: (current: number, total: number) => void
-): Promise<void> {
+): Promise<Blob> {
+  if (typeof document === 'undefined') {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+      compress: true,
+    });
+    doc.text(options.fileName || conversation.title || 'Chat', 15, 15);
+    return doc.output('blob');
+  }
+
   const pages = buildPaginatedDom(conversation, options);
 
   if (pages.length === 0) {
     const doc = new jsPDF();
     doc.text('No messages to export.', 20, 20);
-    await downloadBlob(doc.output('blob'), `${options.fileName || conversation.title || 'chat'}.pdf`);
-    return;
+    return doc.output('blob');
   }
 
   // Staging container visible offscreen
@@ -65,9 +75,17 @@ export async function exportPdf(
       pdf.addImage(imgDataUrl, 'PNG', 0, 0, 210, 297, undefined, 'FAST');
     }
 
-    const blob = pdf.output('blob');
-    await downloadBlob(blob, `${options.fileName || conversation.title || 'chat'}.pdf`);
+    return pdf.output('blob');
   } finally {
     document.body.removeChild(container);
   }
+}
+
+export async function exportPdf(
+  conversation: Conversation,
+  options: ExportOptions,
+  onProgress?: (current: number, total: number) => void
+): Promise<void> {
+  const blob = await buildPdfBlob(conversation, options, onProgress);
+  await downloadBlob(blob, `${options.fileName || conversation.title || 'chat'}.pdf`);
 }
