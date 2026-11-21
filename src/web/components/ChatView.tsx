@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Conversation, ChatMessage, PageStyle } from '../../core/parser/types';
 import { resolveTheme } from '../../core/theme/resolveTheme';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
+import { Copy, Check, EyeOff, Eye } from 'lucide-react';
 
 export interface ChatViewProps {
   conversation: Conversation;
@@ -12,6 +13,9 @@ export interface ChatViewProps {
   style?: React.CSSProperties;
   maxHeight?: string | number;
   showWatermark?: boolean;
+  allowActions?: boolean;
+  excludedIndices?: Set<number>;
+  onToggleExclude?: (index: number) => void;
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
@@ -22,9 +26,23 @@ export const ChatView: React.FC<ChatViewProps> = ({
   style = {},
   maxHeight,
   showWatermark = false,
+  allowActions = true,
+  excludedIndices,
+  onToggleExclude,
 }) => {
   const resolved = resolveTheme(conversation.themeSnapshot, pageStyle, conversation.source);
   const messages = messagesOverride || conversation.messages;
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+  const handleCopy = async (text: string, index: number) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedIndex(index);
+      setTimeout(() => setCopiedIndex(null), 1800);
+    } catch (err) {
+      console.error('Failed to copy message turn text', err);
+    }
+  };
 
   const renderContent = (msg: ChatMessage) => {
     if (msg.htmlContent) {
@@ -46,6 +64,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
         return 'Perplexity';
       case 'groq':
         return 'Groq';
+      case 'deepseek':
+        return 'DeepSeek';
       default:
         return 'AI Assistant';
     }
@@ -63,6 +83,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
         return 'P';
       case 'groq':
         return 'Gr';
+      case 'deepseek':
+        return 'DS';
       default:
         return 'AI';
     }
@@ -203,6 +225,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {messages.map((m, idx) => {
             const isUser = m.role === 'user';
+            const turnIdx = m.index !== undefined ? m.index : idx;
+            const isExcluded = Boolean(excludedIndices && excludedIndices.has(turnIdx));
 
             if (isUser) {
               return (
@@ -213,8 +237,101 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     flexDirection: 'column',
                     alignItems: 'flex-end',
                     width: '100%',
+                    opacity: isExcluded ? 0.45 : 1,
+                    transition: 'opacity 0.2s ease',
                   }}
                 >
+                  {/* User Turn Action Bar */}
+                  {allowActions && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        marginBottom: '4px',
+                        fontSize: '11px',
+                        color: resolved.mutedText,
+                      }}
+                    >
+                      {isExcluded && (
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: 600,
+                            color: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                          }}
+                        >
+                          Excluded from export
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(m.content, turnIdx)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '2px 6px',
+                          borderRadius: '6px',
+                          border: `1px solid ${resolved.borderColor}`,
+                          backgroundColor: resolved.userBubbleBackground,
+                          color: resolved.textColor,
+                          cursor: 'pointer',
+                          fontSize: '11px',
+                          transition: 'all 0.15s ease',
+                        }}
+                        title="Copy message content"
+                      >
+                        {copiedIndex === turnIdx ? (
+                          <>
+                            <Check style={{ width: '12px', height: '12px', color: '#10b981' }} />
+                            <span style={{ color: '#10b981', fontWeight: 600 }}>Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy style={{ width: '12px', height: '12px' }} />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+                      {onToggleExclude && (
+                        <button
+                          type="button"
+                          onClick={() => onToggleExclude(turnIdx)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '2px 6px',
+                            borderRadius: '6px',
+                            border: `1px solid ${resolved.borderColor}`,
+                            backgroundColor: isExcluded ? '#fee2e2' : resolved.userBubbleBackground,
+                            color: isExcluded ? '#dc2626' : resolved.textColor,
+                            cursor: 'pointer',
+                            fontSize: '11px',
+                            transition: 'all 0.15s ease',
+                          }}
+                          title={isExcluded ? 'Include in export' : 'Exclude from export'}
+                        >
+                          {isExcluded ? (
+                            <>
+                              <Eye style={{ width: '12px', height: '12px' }} />
+                              <span>Restore</span>
+                            </>
+                          ) : (
+                            <>
+                              <EyeOff style={{ width: '12px', height: '12px' }} />
+                              <span>Exclude</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   <div
                     style={{
                       maxWidth: '82%',
@@ -225,6 +342,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       borderBottomRightRadius: '4px',
                       fontSize: '14.5px',
                       boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                      textDecoration: isExcluded ? 'line-through' : undefined,
                     }}
                   >
                     <div
@@ -292,43 +410,129 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   flexDirection: 'column',
                   alignItems: 'flex-start',
                   width: '100%',
+                  opacity: isExcluded ? 0.45 : 1,
+                  transition: 'opacity 0.2s ease',
                 }}
               >
-                {/* Neutral Avatar & Label */}
+                {/* Neutral Avatar, Label & Assistant Actions */}
                 <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '8px',
+                    justifyContent: 'space-between',
+                    width: '100%',
                     marginBottom: '6px',
                   }}
                 >
-                  <div
-                    style={{
-                      width: '26px',
-                      height: '26px',
-                      borderRadius: '50%',
-                      backgroundColor: resolved.userBubbleBackground,
-                      border: `1px solid ${resolved.borderColor}`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      color: resolved.textColor,
-                    }}
-                  >
-                    {getAssistantInitial(resolved.source)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div
+                      style={{
+                        width: '26px',
+                        height: '26px',
+                        borderRadius: '50%',
+                        backgroundColor: resolved.userBubbleBackground,
+                        border: `1px solid ${resolved.borderColor}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        color: resolved.textColor,
+                      }}
+                    >
+                      {getAssistantInitial(resolved.source)}
+                    </div>
+                    <span
+                      style={{
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        color: resolved.textColor,
+                      }}
+                    >
+                      {getSiteDisplayName(resolved.source)}
+                    </span>
+                    {isExcluded && (
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 600,
+                          color: '#ef4444',
+                          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                        }}
+                      >
+                        Excluded from export
+                      </span>
+                    )}
                   </div>
-                  <span
-                    style={{
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      color: resolved.textColor,
-                    }}
-                  >
-                    {getSiteDisplayName(resolved.source)}
-                  </span>
+
+                  {allowActions && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(m.content, turnIdx)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '2px 6px',
+                          borderRadius: '6px',
+                          border: `1px solid ${resolved.borderColor}`,
+                          backgroundColor: resolved.userBubbleBackground,
+                          color: resolved.textColor,
+                          cursor: 'pointer',
+                          fontSize: '11px',
+                          transition: 'all 0.15s ease',
+                        }}
+                        title="Copy message content"
+                      >
+                        {copiedIndex === turnIdx ? (
+                          <>
+                            <Check style={{ width: '12px', height: '12px', color: '#10b981' }} />
+                            <span style={{ color: '#10b981', fontWeight: 600 }}>Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy style={{ width: '12px', height: '12px' }} />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+                      {onToggleExclude && (
+                        <button
+                          type="button"
+                          onClick={() => onToggleExclude(turnIdx)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '2px 6px',
+                            borderRadius: '6px',
+                            border: `1px solid ${resolved.borderColor}`,
+                            backgroundColor: isExcluded ? '#fee2e2' : resolved.userBubbleBackground,
+                            color: isExcluded ? '#dc2626' : resolved.textColor,
+                            cursor: 'pointer',
+                            fontSize: '11px',
+                            transition: 'all 0.15s ease',
+                          }}
+                          title={isExcluded ? 'Include in export' : 'Exclude from export'}
+                        >
+                          {isExcluded ? (
+                            <>
+                              <Eye style={{ width: '12px', height: '12px' }} />
+                              <span>Restore</span>
+                            </>
+                          ) : (
+                            <>
+                              <EyeOff style={{ width: '12px', height: '12px' }} />
+                              <span>Exclude</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Assistant Content: Flat text spanning the column */}
@@ -339,6 +543,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     color: resolved.textColor,
                     paddingLeft: '34px',
                     boxSizing: 'border-box',
+                    textDecoration: isExcluded ? 'line-through' : undefined,
                   }}
                 >
                   <div

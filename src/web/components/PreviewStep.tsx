@@ -9,7 +9,7 @@ interface PreviewStepProps {
   filterMode: FilterMode;
   onFilterChange: (mode: FilterMode) => void;
   onBack: () => void;
-  onContinue: () => void;
+  onContinue: (updatedConversation?: Conversation) => void;
 }
 
 export const PreviewStep: React.FC<PreviewStepProps> = ({
@@ -37,18 +37,32 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
   };
 
   const activeMessages = filteredMessages.filter((m) => !excludedIndices.has(m.index));
+  const activeCount = conversation.messages.length - excludedIndices.size;
 
   // Search filter
   const queryTrimmed = searchQuery.trim().toLowerCase();
   const displayedMessages = queryTrimmed
-    ? activeMessages.filter((m) => (m.content || '').toLowerCase().includes(queryTrimmed))
-    : activeMessages;
+    ? filteredMessages.filter((m) => (m.content || '').toLowerCase().includes(queryTrimmed))
+    : filteredMessages;
 
   // Stats
-  const totalWords = conversation.messages.reduce((acc, m) => {
+  const includedMessages = conversation.messages.filter((m) => !excludedIndices.has(m.index));
+  const totalWords = includedMessages.reduce((acc, m) => {
     return acc + (m.content ? m.content.trim().split(/\s+/).filter(Boolean).length : 0);
   }, 0);
   const readingMinutes = Math.max(1, Math.ceil(totalWords / 200));
+
+  const handleContinue = () => {
+    if (excludedIndices.size > 0) {
+      const updated: Conversation = {
+        ...conversation,
+        messages: conversation.messages.filter((m) => !excludedIndices.has(m.index)),
+      };
+      onContinue(updated);
+    } else {
+      onContinue();
+    }
+  };
 
   const filterOptions: { id: FilterMode; label: string; count: number }[] = [
     { id: 'all', label: 'All Messages', count: conversation.messages.length },
@@ -75,7 +89,7 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
           </h2>
           <div className="flex items-center gap-3 text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
             <span>
-              {activeMessages.length} of {conversation.messages.length} messages included.
+              {activeCount} of {conversation.messages.length} messages included.
             </span>
             <span>•</span>
             <span className="flex items-center gap-1">
@@ -142,6 +156,8 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
             conversation={conversation}
             messagesOverride={displayedMessages}
             maxHeight="520px"
+            excludedIndices={excludedIndices}
+            onToggleExclude={toggleExclude}
           />
         )}
       </div>
@@ -159,7 +175,7 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
 
         <button
           type="button"
-          onClick={onContinue}
+          onClick={handleContinue}
           className="min-h-[44px] px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm transition-all shadow-md shadow-blue-600/20 flex items-center gap-2 cursor-pointer"
         >
           <span>Choose Format & Export</span>

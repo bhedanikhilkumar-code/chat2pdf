@@ -112,6 +112,13 @@ export const ExportStep: React.FC<ExportStepProps> = ({
       desc: 'Structured tabular data ready for Excel & Google Sheets',
     },
     {
+      id: 'json',
+      title: 'JSON Data (.json)',
+      icon: <FileCode className="w-5 h-5 text-indigo-500" />,
+      desc: 'Structured raw JSON with roles, metadata, timestamps & attachments',
+      badge: 'Data',
+    },
+    {
       id: 'handwriting',
       title: 'Handwritten Notes',
       icon: <PenTool className="w-5 h-5 text-amber-600" />,

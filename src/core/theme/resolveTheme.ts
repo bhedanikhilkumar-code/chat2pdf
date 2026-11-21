@@ -10,7 +10,7 @@ export interface ResolvedTheme {
   userBubbleText: string;
   codeBlockBackground: string;
   linkColor: string;
-  source: 'chatgpt' | 'claude' | 'gemini' | 'perplexity' | 'groq' | 'generic';
+  source: 'chatgpt' | 'claude' | 'gemini' | 'perplexity' | 'groq' | 'deepseek' | 'generic';
 }
 
 export function resolveTheme(
@@ -25,6 +25,7 @@ export function resolveTheme(
   else if (rawSource.includes('gemini')) source = 'gemini';
   else if (rawSource.includes('perplexity')) source = 'perplexity';
   else if (rawSource.includes('groq')) source = 'groq';
+  else if (rawSource.includes('deepseek')) source = 'deepseek';
 
   // Force Light
   if (pageStyle === 'light') {
@@ -37,7 +38,7 @@ export function resolveTheme(
       userBubbleBackground: '#f4f4f5',
       userBubbleText: '#0f172a',
       codeBlockBackground: '#f8fafc',
-      linkColor: '#2563eb',
+      linkColor: source === 'deepseek' ? '#4d6bfe' : '#2563eb',
       source,
     };
   }
@@ -53,7 +54,7 @@ export function resolveTheme(
       userBubbleBackground: '#2f2f2f',
       userBubbleText: '#ffffff',
       codeBlockBackground: '#171717',
-      linkColor: '#10a37f',
+      linkColor: source === 'deepseek' ? '#4d6bfe' : '#10a37f',
       source,
     };
   }
@@ -75,6 +76,21 @@ export function resolveTheme(
   }
 
   // Default fallback when no snapshot is available (e.g. web raw text paste)
+  if (source === 'deepseek') {
+    return {
+      mode: 'dark',
+      pageBackground: '#1a1a2e',
+      textColor: '#e6edf3',
+      mutedText: '#8b949e',
+      borderColor: '#30363d',
+      userBubbleBackground: '#282c3f',
+      userBubbleText: '#ffffff',
+      codeBlockBackground: '#13161f',
+      linkColor: '#4d6bfe',
+      source,
+    };
+  }
+
   return {
     mode: 'light',
     pageBackground: '#ffffff',

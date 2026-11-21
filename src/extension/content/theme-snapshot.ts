@@ -68,6 +68,7 @@ export function extractThemeSnapshot(hostname: string): ThemeSnapshot {
   else if (host.includes('gemini')) siteSource = 'gemini';
   else if (host.includes('perplexity')) siteSource = 'perplexity';
   else if (host.includes('groq')) siteSource = 'groq';
+  else if (host.includes('deepseek')) siteSource = 'deepseek';
 
   // Find main chat container or body
   const container =

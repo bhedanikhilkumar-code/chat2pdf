@@ -97,7 +97,10 @@ export default function App() {
               filterMode={filterMode}
               onFilterChange={setFilterMode}
               onBack={() => setCurrentStep(0)}
-              onContinue={() => setCurrentStep(2)}
+              onContinue={(updatedConv) => {
+                if (updatedConv) setConversation(updatedConv);
+                setCurrentStep(2);
+              }}
             />
           )}
 

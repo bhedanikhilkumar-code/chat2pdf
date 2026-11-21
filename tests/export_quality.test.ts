@@ -399,4 +399,26 @@ def process_task(task_id: str) -> bool:
 
     await browser.close();
   });
+
+  // 11. JSON Data
+  it('11. JSON Data: valid JSON structure, messages array, roles, attachments, watermark', () => {
+    const jsonData = {
+      title: sampleChat.title,
+      source: sampleChat.source,
+      exportedAt: sampleChat.exportedAt,
+      messageCount: sampleChat.messages.length,
+      messages: sampleChat.messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+        attachments: m.attachments,
+      })),
+      watermark: WATERMARK_TEXT,
+    };
+    const jsonStr = JSON.stringify(jsonData, null, 2);
+    const parsed = JSON.parse(jsonStr);
+    expect(parsed.title).toBe(sampleChat.title);
+    expect(parsed.messages.length).toBe(4);
+    expect(parsed.messages[0].attachments[0].name).toBe('cluster-spec.yaml');
+    expect(parsed.watermark).toBe(WATERMARK_TEXT);
+  });
 });

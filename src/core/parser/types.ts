@@ -26,18 +26,18 @@ export interface ThemeSnapshot {
   userBubbleText: string;
   codeBlockBackground: string;
   linkColor: string;
-  source: 'chatgpt' | 'claude' | 'gemini' | 'perplexity' | 'groq' | 'generic';
+  source: 'chatgpt' | 'claude' | 'gemini' | 'perplexity' | 'groq' | 'deepseek' | 'generic';
 }
 
 export interface Conversation {
   title: string;
-  source: string; // chatgpt, gemini, claude, perplexity, groq, unknown
+  source: string; // chatgpt, gemini, claude, perplexity, groq, deepseek, unknown
   messages: ChatMessage[];
   exportedAt: string;
   themeSnapshot?: ThemeSnapshot;
 }
 
-export type ExportFormat = 'pdf' | 'pptx' | 'csv' | 'txt' | 'md' | 'jpg' | 'png' | 'docx' | 'handwriting';
+export type ExportFormat = 'pdf' | 'pptx' | 'csv' | 'txt' | 'md' | 'jpg' | 'png' | 'docx' | 'handwriting' | 'json';
 
 export type PageStyle = 'match' | 'light' | 'dark';
 

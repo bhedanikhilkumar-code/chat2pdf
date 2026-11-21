@@ -48,6 +48,11 @@ async function validateFile(filePath, fmt) {
     if (!str.includes('Chat2PDF') && !str.includes('TypeScript')) {
       throw new Error(`File content suspicious: ${str.slice(0, 100)}`);
     }
+  } else if (fmt === 'json') {
+    const parsed = JSON.parse(buf.toString('utf-8'));
+    if (!parsed.messages || !Array.isArray(parsed.messages)) {
+      throw new Error('Invalid JSON: missing messages array');
+    }
   }
   return buf.length;
 }
@@ -69,6 +74,7 @@ export async function runDownloadTests() {
     'MD',
     'TXT',
     'CSV',
+    'JSON',
     'Handwriting PDF',
     'Handwriting JPG',
   ];
@@ -111,7 +117,7 @@ export async function runDownloadTests() {
     await exportStepBtn.click();
     await page.waitForTimeout(400);
 
-    // Test standard 8 formats
+    // Test standard formats
     const standardFormats = [
       { name: 'PDF', id: 'pdf', ext: '.pdf', selector: 'text="PDF Document"' },
       { name: 'DOCX', id: 'docx', ext: '.docx', selector: 'text="Word (.docx)"' },
@@ -121,6 +127,7 @@ export async function runDownloadTests() {
       { name: 'MD', id: 'md', ext: '.md', selector: 'text="Markdown (.md)"' },
       { name: 'TXT', id: 'txt', ext: '.txt', selector: 'text="Plain Text (.txt)"' },
       { name: 'CSV', id: 'csv', ext: '.csv', selector: 'text="CSV Table (.csv)"' },
+      { name: 'JSON', id: 'json', ext: '.json', selector: 'text="JSON Data (.json)"' },
     ];
 
     for (const fmt of standardFormats) {
@@ -276,7 +283,7 @@ export async function runDownloadTests() {
     await exportStepBtn.click();
     await exporterPage.waitForTimeout(400);
 
-    // Test standard 8 formats
+    // Test standard formats
     const standardFormats = [
       { name: 'PDF', id: 'pdf', ext: '.pdf', selector: 'text="PDF Document"' },
       { name: 'DOCX', id: 'docx', ext: '.docx', selector: 'text="Word (.docx)"' },
@@ -286,6 +293,7 @@ export async function runDownloadTests() {
       { name: 'MD', id: 'md', ext: '.md', selector: 'text="Markdown (.md)"' },
       { name: 'TXT', id: 'txt', ext: '.txt', selector: 'text="Plain Text (.txt)"' },
       { name: 'CSV', id: 'csv', ext: '.csv', selector: 'text="CSV Table (.csv)"' },
+      { name: 'JSON', id: 'json', ext: '.json', selector: 'text="JSON Data (.json)"' },
     ];
 
     for (const fmt of standardFormats) {

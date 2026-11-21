@@ -365,4 +365,16 @@ describe('Real-World DOM Regression & Virtualization Tests', () => {
     expect(extracted[1].role).toBe('assistant');
     expect(extracted[1].content).toContain('DeepSeek-R1 is an open-weights reasoning model');
   });
+
+  it('resolves DeepSeek source branding in resolveTheme with characteristic colors', async () => {
+    const { resolveTheme } = await import('../src/core/theme/resolveTheme');
+
+    const deepseekTheme = resolveTheme(undefined, 'match', 'deepseek');
+    expect(deepseekTheme.source).toBe('deepseek');
+    expect(deepseekTheme.linkColor).toBe('#4d6bfe');
+
+    const darkTheme = resolveTheme(undefined, 'dark', 'deepseek');
+    expect(darkTheme.source).toBe('deepseek');
+    expect(darkTheme.linkColor).toBe('#4d6bfe');
+  });
 });

@@ -22,3 +22,4 @@ export { exportMarkdown } from './exporters/exportMarkdown';
 export { exportImage } from './exporters/exportImage';
 export { exportDocx } from './exporters/exportDocx';
 export { exportHandwriting } from './exporters/exportHandwriting';
+export { exportJson } from './exporters/exportJson';
