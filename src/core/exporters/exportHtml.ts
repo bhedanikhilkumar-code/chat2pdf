@@ -77,6 +77,11 @@ export function buildHtmlContent(
   const siteName = getSiteDisplayName(resolved.source);
   const assistantInitial = getAssistantInitial(resolved.source);
 
+  const totalWords = messages.reduce((acc, m) => {
+    return acc + (m.content ? m.content.trim().split(/\s+/).filter(Boolean).length : 0);
+  }, 0);
+  const readingMinutes = Math.max(1, Math.ceil(totalWords / 200));
+
   const renderedTurns = messages.map((m: ChatMessage) => {
     const isUser = m.role === 'user';
     const contentHtml = m.htmlContent
@@ -318,7 +323,11 @@ export function buildHtmlContent(
         <h1 class="header-title">${escapeHtml(title)}</h1>
         <div class="header-meta">${siteName} conversation • Exported ${escapeHtml(conversation.exportedAt || new Date().toISOString())}</div>
       </div>
-      <span class="badge">${messages.length} messages</span>
+      <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+        <span class="badge">${messages.length} messages</span>
+        <span class="badge">${totalWords.toLocaleString()} words</span>
+        <span class="badge">~${readingMinutes} min read</span>
+      </div>
     </div>
 
     <div class="chat-flow">

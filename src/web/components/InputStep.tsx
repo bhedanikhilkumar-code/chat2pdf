@@ -112,6 +112,7 @@ Assistant: Here is a quick breakdown:
 
   const charCount = text.length;
   const lineCount = text ? text.split('\n').length : 0;
+  const estimatedTokens = Math.max(0, Math.ceil(charCount / 4));
 
   return (
     <div className="space-y-6">
@@ -194,7 +195,7 @@ Assistant: Here is a quick breakdown:
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1">
               <FileText className="w-3.5 h-3.5" />
-              {lineCount} lines • {charCount} chars
+              {lineCount} lines • {charCount.toLocaleString()} chars • ~{estimatedTokens.toLocaleString()} tokens
             </span>
           </div>
 

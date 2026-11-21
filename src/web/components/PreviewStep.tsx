@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import type { Conversation, FilterMode } from '../../core/parser/types';
 import { filterMessages } from '../../core/parser/filters';
 import { ChatView } from './ChatView';
-import { ArrowLeft, ArrowRight, Search, X, Clock, FileText, Copy, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Search, X, Clock, FileText, Copy, CheckCircle2, Keyboard } from 'lucide-react';
 
 interface PreviewStepProps {
   conversation: Conversation;
@@ -23,6 +23,7 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [copiedFiltered, setCopiedFiltered] = useState<boolean>(false);
   const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable');
+  const [showShortcutsModal, setShowShortcutsModal] = useState<boolean>(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -63,9 +64,20 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
         e.preventDefault();
         searchInputRef.current?.focus();
       }
-      if (e.key === 'Escape' && document.activeElement === searchInputRef.current) {
-        setSearchQuery('');
-        searchInputRef.current?.blur();
+      if (
+        (e.key === '?' || (e.shiftKey && e.key === '/')) &&
+        document.activeElement?.tagName !== 'INPUT' &&
+        document.activeElement?.tagName !== 'TEXTAREA'
+      ) {
+        e.preventDefault();
+        setShowShortcutsModal((prev) => !prev);
+      }
+      if (e.key === 'Escape') {
+        setShowShortcutsModal(false);
+        if (document.activeElement === searchInputRef.current) {
+          setSearchQuery('');
+          searchInputRef.current?.blur();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -215,12 +227,23 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
               className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                 density === 'compact'
                   ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-xs font-semibold'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
               }`}
             >
               Compact
             </button>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setShowShortcutsModal(true)}
+            className="text-xs px-2 py-1 rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all cursor-pointer flex items-center gap-1 border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
+            title="Keyboard Shortcuts (Press '?')"
+            aria-label="View keyboard shortcuts"
+          >
+            <Keyboard className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Keys</span>
+          </button>
 
           <div className="h-4 w-px bg-gray-300 dark:bg-gray-700 mx-1 hidden sm:block" />
 
@@ -354,6 +377,71 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>
+
+      {showShortcutsModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="shortcuts-dialog-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
+          onClick={() => setShowShortcutsModal(false)}
+        >
+          <div
+            className="w-full max-w-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xl p-5 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Keyboard className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <h3 id="shortcuts-dialog-title" className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                  Keyboard Shortcuts
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowShortcutsModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 cursor-pointer"
+                aria-label="Close shortcuts modal"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center justify-between py-1.5 border-b border-gray-100 dark:border-gray-800">
+                <span className="text-gray-600 dark:text-gray-300">Next message turn</span>
+                <kbd className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-mono text-[11px] font-semibold text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700">
+                  J
+                </kbd>
+              </div>
+              <div className="flex items-center justify-between py-1.5 border-b border-gray-100 dark:border-gray-800">
+                <span className="text-gray-600 dark:text-gray-300">Previous message turn</span>
+                <kbd className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-mono text-[11px] font-semibold text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700">
+                  K
+                </kbd>
+              </div>
+              <div className="flex items-center justify-between py-1.5 border-b border-gray-100 dark:border-gray-800">
+                <span className="text-gray-600 dark:text-gray-300">Focus search bar</span>
+                <kbd className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-mono text-[11px] font-semibold text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700">
+                  /
+                </kbd>
+              </div>
+              <div className="flex items-center justify-between py-1.5 border-b border-gray-100 dark:border-gray-800">
+                <span className="text-gray-600 dark:text-gray-300">Clear search / Close modal</span>
+                <kbd className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-mono text-[11px] font-semibold text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700">
+                  Esc
+                </kbd>
+              </div>
+              <div className="flex items-center justify-between py-1.5">
+                <span className="text-gray-600 dark:text-gray-300">Toggle this dialog</span>
+                <kbd className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-mono text-[11px] font-semibold text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700">
+                  ?
+                </kbd>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

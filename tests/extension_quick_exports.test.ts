@@ -38,6 +38,8 @@ describe('Extension Quick Exports Verification', () => {
     expect(html).toContain('quantum computing');
     expect(html).toContain('qubits and superposition');
     expect(html).toContain('Made with Chat2PDF');
+    expect(html).toContain('words');
+    expect(html).toContain('min read');
     expect(html).toContain('</html>');
   });
 
