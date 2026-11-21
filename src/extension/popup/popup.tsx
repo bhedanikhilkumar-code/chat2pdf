@@ -183,9 +183,9 @@ const Popup: React.FC = () => {
     });
   };
 
-  const handleExport = async (forceProceed = false) => {
+  const handleExport = async (forceProceed = false, quickFormat?: 'md') => {
     setLoading(true);
-    setStatus('Loading conversation & scrolling older messages...');
+    setStatus(quickFormat ? 'Quick exporting markdown...' : 'Loading conversation & scrolling older messages...');
     setCompleteness(null);
     setFriendlyError(null);
     setRawErrorDetails(null);
@@ -262,7 +262,27 @@ const Popup: React.FC = () => {
             return;
           }
 
-          // Complete or user forced proceed
+          // If Quick Markdown export was requested, download directly without leaving tab
+          if (quickFormat === 'md') {
+            const mdText = messages
+              .map((m: any) => `### ${m.role === 'user' ? 'User' : 'Assistant'}\n\n${m.content}\n\n---\n`)
+              .join('\n');
+            const blob = new Blob([mdText], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const safeTitle = (title || 'chat').replace(/[^a-z0-9_-]/gi, '_').slice(0, 40);
+            a.download = `${safeTitle}.md`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            setStatus(`Downloaded ${safeTitle}.md (${messages.length} messages)`);
+            setLoading(false);
+            return;
+          }
+
+          // Complete or user forced proceed - Open Studio
           setStatus(`Complete: ${messages.length} messages`);
 
           chrome.storage.local.set(
@@ -415,56 +435,81 @@ const Popup: React.FC = () => {
       </div>
 
       {/* Primary Action Button */}
-      <div style={{ display: 'flex', gap: '8px' }}>
-        <button
-          onClick={() => handleExport(false)}
-          disabled={loading}
-          style={{
-            flex: 1,
-            padding: '11px 16px',
-            backgroundColor: loading ? '#93c5fd' : '#2563eb',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '12px',
-            fontSize: '13.5px',
-            fontWeight: 600,
-            cursor: loading ? 'not-allowed' : 'pointer',
-            boxShadow: '0 2px 8px rgba(37,99,235,0.25)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-          }}
-        >
-          {loading ? (
-            <RefreshCw style={{ width: '16px', height: '16px', animation: 'spin 1s linear infinite' }} />
-          ) : (
-            <Download style={{ width: '16px', height: '16px' }} />
-          )}
-          <span>{loading ? 'Collecting...' : 'Export this chat'}</span>
-        </button>
-
-        {loading && (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px' }}>
           <button
-            onClick={handleCancel}
+            onClick={() => handleExport(false)}
+            disabled={loading}
             style={{
+              flex: 1,
               padding: '11px 14px',
-              backgroundColor: '#fee2e2',
-              color: '#dc2626',
-              border: '1px solid #fecaca',
+              backgroundColor: loading ? '#93c5fd' : '#2563eb',
+              color: '#ffffff',
+              border: 'none',
               borderRadius: '12px',
-              fontSize: '12.5px',
+              fontSize: '13px',
               fontWeight: 600,
-              cursor: 'pointer',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              boxShadow: '0 2px 8px rgba(37,99,235,0.25)',
               display: 'flex',
               alignItems: 'center',
-              gap: '4px',
+              justifyContent: 'center',
+              gap: '6px',
             }}
           >
-            <XCircle style={{ width: '15px', height: '15px' }} />
-            <span>Cancel</span>
+            {loading ? (
+              <RefreshCw style={{ width: '15px', height: '15px', animation: 'spin 1s linear infinite' }} />
+            ) : (
+              <ExternalLink style={{ width: '15px', height: '15px' }} />
+            )}
+            <span>{loading ? 'Collecting...' : 'Open Studio (10 Formats)'}</span>
           </button>
-        )}
+
+          {!loading && isSupported && (
+            <button
+              onClick={() => handleExport(false, 'md')}
+              title="Instantly download chat as a markdown (.md) file"
+              style={{
+                padding: '11px 12px',
+                backgroundColor: '#f1f5f9',
+                color: '#334155',
+                border: '1px solid #cbd5e1',
+                borderRadius: '12px',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <Download style={{ width: '14px', height: '14px', color: '#0284c7' }} />
+              <span>Quick .md</span>
+            </button>
+          )}
+
+          {loading && (
+            <button
+              onClick={handleCancel}
+              style={{
+                padding: '11px 14px',
+                backgroundColor: '#fee2e2',
+                color: '#dc2626',
+                border: '1px solid #fecaca',
+                borderRadius: '12px',
+                fontSize: '12.5px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <XCircle style={{ width: '15px', height: '15px' }} />
+              <span>Cancel</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Amber: "Possibly incomplete: found N, expected about M. Tap Copy diagnostics" */}
