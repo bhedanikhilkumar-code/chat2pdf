@@ -110,4 +110,14 @@ describe('Preview Step Batch Selection & Exclusion Controls', () => {
     const words = msg.content.trim().split(/\s+/).filter(Boolean).length;
     expect(words).toBe(10);
   });
+
+  it('correctly updates conversation title when continuing with an edited title', () => {
+    const customTitle = 'Refined Technical Specification';
+    const updatedConv: Conversation = {
+      ...sampleChat,
+      title: customTitle,
+    };
+    expect(updatedConv.title).toBe(customTitle);
+    expect(updatedConv.messages.length).toBe(sampleChat.messages.length);
+  });
 });

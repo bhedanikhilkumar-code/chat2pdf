@@ -14,6 +14,8 @@ import {
   Copy,
   CheckCircle2,
   Keyboard,
+  Pencil,
+  Check,
 } from 'lucide-react';
 
 type ContentTypeFilter = 'all' | 'code' | 'files';
@@ -39,7 +41,25 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
   const [copiedFiltered, setCopiedFiltered] = useState<boolean>(false);
   const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable');
   const [showShortcutsModal, setShowShortcutsModal] = useState<boolean>(false);
+  const [currentTitle, setCurrentTitle] = useState(conversation.title || 'Conversation');
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [tempTitle, setTempTitle] = useState(conversation.title || 'Conversation');
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setCurrentTitle(conversation.title || 'Conversation');
+    setTempTitle(conversation.title || 'Conversation');
+  }, [conversation.title]);
+
+  const handleSaveTitle = () => {
+    const trimmed = tempTitle.trim();
+    if (trimmed) {
+      setCurrentTitle(trimmed);
+    } else {
+      setTempTitle(currentTitle);
+    }
+    setIsEditingTitle(false);
+  };
 
   useEffect(() => {
     let activeTurnIdx = -1;
@@ -169,7 +189,7 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
 
   const handleCopyFiltered = async () => {
     const lines: string[] = [];
-    lines.push(`# ${conversation.title || 'Conversation'}\n`);
+    lines.push(`# ${currentTitle.trim() || conversation.title || 'Conversation'}\n`);
     displayedMessages.forEach((m) => {
       lines.push(`### ${m.role === 'user' ? '👤 User' : '🤖 Assistant'}\n\n${m.content}\n`);
       if (m.attachments && m.attachments.length > 0) {
@@ -209,15 +229,12 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
   };
 
   const handleContinue = () => {
-    if (excludedIndices.size > 0) {
-      const updated: Conversation = {
-        ...conversation,
-        messages: conversation.messages.filter((m) => !excludedIndices.has(m.index)),
-      };
-      onContinue(updated);
-    } else {
-      onContinue();
-    }
+    const updated: Conversation = {
+      ...conversation,
+      title: currentTitle.trim() || conversation.title,
+      messages: conversation.messages.filter((m) => !excludedIndices.has(m.index)),
+    };
+    onContinue(updated);
   };
 
   const filterOptions: { id: FilterMode; label: string; count: number }[] = [
@@ -240,10 +257,64 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
       {/* Top Controls Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
-            Step 2: Preview & Filter
-          </h2>
-          <div className="flex items-center gap-3 text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
+              Step 2: Preview & Filter
+            </h2>
+            <span className="text-gray-300 dark:text-gray-700 hidden sm:inline">/</span>
+            {isEditingTitle ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={tempTitle}
+                  onChange={(e) => setTempTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSaveTitle();
+                    if (e.key === 'Escape') {
+                      setTempTitle(currentTitle);
+                      setIsEditingTitle(false);
+                    }
+                  }}
+                  autoFocus
+                  placeholder="Conversation title..."
+                  className="px-2.5 py-1 text-xs sm:text-sm font-semibold rounded-xl border border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveTitle}
+                  className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 cursor-pointer"
+                  title="Save title"
+                >
+                  <Check className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTempTitle(currentTitle);
+                    setIsEditingTitle(false);
+                  }}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+                  title="Cancel editing"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setTempTitle(currentTitle);
+                  setIsEditingTitle(true);
+                }}
+                className="group inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer px-2 py-0.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                title="Click to rename conversation"
+              >
+                <span className="truncate max-w-[240px] sm:max-w-md">{currentTitle}</span>
+                <Pencil className="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-500 transition-colors shrink-0" />
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-3 text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1 flex-wrap">
             <span>
               {activeCount} of {conversation.messages.length} messages included.
             </span>
@@ -463,7 +534,10 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
           </div>
         ) : (
           <ChatView
-            conversation={conversation}
+            conversation={{
+              ...conversation,
+              title: currentTitle,
+            }}
             messagesOverride={displayedMessages}
             density={density}
             maxHeight="520px"
