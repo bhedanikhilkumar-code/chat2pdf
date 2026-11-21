@@ -157,7 +157,7 @@ Assistant: Here is a quick breakdown:
           <input
             ref={fileInputRef}
             type="file"
-            accept=".txt,.md,.text"
+            accept=".txt,.md,.json,.text"
             className="hidden"
             onChange={handleFileChange}
           />

@@ -88,4 +88,33 @@ Assistant: I reviewed both files. Here is the summary.`;
     expect(userMsg.attachments?.[0].size).toBe('1.2MB');
     expect(userMsg.attachments?.[1].name).toBe('sales_data.csv');
   });
+
+  it('detects and parses structured JSON chat exports directly', () => {
+    const jsonChat = JSON.stringify({
+      title: 'Structured JSON Discussion',
+      source: 'deepseek',
+      exportedAt: '2026-11-22T03:00:00.000Z',
+      messages: [
+        {
+          index: 0,
+          role: 'user',
+          content: 'What is the capital of France?',
+        },
+        {
+          index: 1,
+          role: 'assistant',
+          content: 'The capital of France is Paris.',
+        },
+      ],
+    });
+
+    const conv = parseText(jsonChat);
+    expect(conv.title).toBe('Structured JSON Discussion');
+    expect(conv.source).toBe('deepseek');
+    expect(conv.messages.length).toBe(2);
+    expect(conv.messages[0].role).toBe('user');
+    expect(conv.messages[0].content).toBe('What is the capital of France?');
+    expect(conv.messages[1].role).toBe('assistant');
+    expect(conv.messages[1].content).toBe('The capital of France is Paris.');
+  });
 });

@@ -94,6 +94,30 @@ export function extractInlineAttachments(text: string): { content: string; attac
 }
 
 export function parseText(rawText: string): Conversation {
+  const trimmed = rawText.trim();
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      const parsedJson = JSON.parse(trimmed);
+      if (Array.isArray(parsedJson.messages) && parsedJson.messages.length > 0) {
+        return {
+          title: parsedJson.title || 'Imported Chat',
+          source: parsedJson.source || 'json',
+          exportedAt: parsedJson.exportedAt || new Date().toISOString(),
+          themeSnapshot: parsedJson.themeSnapshot,
+          messages: parsedJson.messages.map((m: any, i: number) => ({
+            index: typeof m.index === 'number' ? m.index : i,
+            role: m.role === 'user' ? 'user' : 'assistant',
+            content: m.content || '',
+            htmlContent: m.htmlContent,
+            attachments: m.attachments,
+          })),
+        };
+      }
+    } catch {
+      // Continue to standard text parsing
+    }
+  }
+
   const cleaned = cleanText(rawText);
   const lines = cleaned.split('\n');
   const messages: ChatMessage[] = [];
