@@ -41,6 +41,8 @@ interface FormatCard {
   badge?: string;
 }
 
+type FormatCategory = 'all' | 'documents' | 'images' | 'code-data';
+
 export const ExportStep: React.FC<ExportStepProps> = ({
   conversation,
   filterMode,
@@ -55,6 +57,7 @@ export const ExportStep: React.FC<ExportStepProps> = ({
   onClearSuccess,
 }) => {
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('pdf');
+  const [formatCategory, setFormatCategory] = useState<FormatCategory>('all');
   const [imageMode, setImageMode] = useState<ImageMode>('long');
   const [pageStyle, setPageStyle] = useState<PageStyle>(
     conversation.themeSnapshot ? 'match' : 'light'
@@ -141,6 +144,14 @@ export const ExportStep: React.FC<ExportStepProps> = ({
       badge: 'Creative',
     },
   ];
+
+  const filteredFormats = formats.filter((f) => {
+    if (formatCategory === 'all') return true;
+    if (formatCategory === 'documents') return ['pdf', 'docx', 'pptx'].includes(f.id);
+    if (formatCategory === 'images') return ['png', 'jpg', 'handwriting'].includes(f.id);
+    if (formatCategory === 'code-data') return ['md', 'txt', 'csv', 'json', 'html'].includes(f.id);
+    return true;
+  });
 
   const handleCardClick = async (format: ExportFormat) => {
     setSelectedFormat(format);
@@ -407,9 +418,65 @@ export const ExportStep: React.FC<ExportStepProps> = ({
         )}
       </div>
 
+      {/* Image layout selector (Only shown when PNG or JPG is selected) */}
+      {(selectedFormat === 'png' || selectedFormat === 'jpg') && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200/80 dark:border-gray-800">
+          <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
+            Image layout:
+          </span>
+          <div className="inline-flex rounded-xl bg-gray-200/70 dark:bg-gray-900/80 p-0.5 text-xs font-medium">
+            <button
+              type="button"
+              onClick={() => setImageMode('long')}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                imageMode === 'long'
+                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-xs font-semibold'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              Full chat screenshot
+            </button>
+            <button
+              type="button"
+              onClick={() => setImageMode('card')}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                imageMode === 'card'
+                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-xs font-semibold'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              Individual cards (.zip)
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Category Filter Chips */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {[
+          { id: 'all', label: 'All Formats', count: formats.length },
+          { id: 'documents', label: 'Documents', count: 3 },
+          { id: 'images', label: 'Images', count: 3 },
+          { id: 'code-data', label: 'Code & Data', count: 5 },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setFormatCategory(tab.id as FormatCategory)}
+            className={`text-xs px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
+              formatCategory === tab.id
+                ? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 font-semibold shadow-xs'
+                : 'border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100/60 dark:hover:bg-gray-800'
+            }`}
+          >
+            {tab.label} ({tab.count})
+          </button>
+        ))}
+      </div>
+
       {/* Formats Grid: 2 columns on phone, 4 columns on desktop */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-3.5">
-        {formats.map((f) => {
+        {filteredFormats.map((f) => {
           const isSelected = selectedFormat === f.id;
           const isCurrentActive = isExporting && activeExportingId === f.id;
 
