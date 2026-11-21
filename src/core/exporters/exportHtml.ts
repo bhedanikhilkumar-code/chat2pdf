@@ -243,12 +243,29 @@ export function buildHtmlContent(
       background-color: ${resolved.codeBlockBackground};
       border: 1px solid ${resolved.borderColor};
       border-radius: 10px;
-      padding: 12px 14px;
+      padding: 32px 14px 12px;
       margin: 12px 0;
       overflow-x: auto;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 13px;
       line-height: 1.45;
+    }
+    .code-lang-badge {
+      position: absolute;
+      top: 8px;
+      left: 10px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background-color: ${resolved.userBubbleBackground};
+      color: ${resolved.mutedText};
+      border: 1px solid ${resolved.borderColor};
+      opacity: 0.85;
+      user-select: none;
+      pointer-events: none;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     }
     .code-copy-btn {
       position: absolute;
@@ -369,6 +386,16 @@ export function buildHtmlContent(
     (function() {
       var codeBlocks = document.querySelectorAll('.prose pre');
       codeBlocks.forEach(function(pre) {
+        var code = pre.querySelector('code');
+        if (code && code.className) {
+          var langMatch = code.className.match(/language-([a-zA-Z0-9#+_-]+)/);
+          if (langMatch && langMatch[1]) {
+            var langBadge = document.createElement('span');
+            langBadge.className = 'code-lang-badge';
+            langBadge.textContent = langMatch[1].toUpperCase();
+            pre.appendChild(langBadge);
+          }
+        }
         var btn = document.createElement('button');
         btn.className = 'code-copy-btn';
         btn.textContent = 'Copy';

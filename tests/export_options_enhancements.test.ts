@@ -56,6 +56,7 @@ describe('Export Options Enhancements (PDF setup, JSON layouts, HTML code copy)'
     });
 
     expect(html).toContain('.code-copy-btn');
+    expect(html).toContain('.code-lang-badge');
     expect(html).toContain('document.querySelectorAll(\'.prose pre\')');
     expect(html).toContain('navigator.clipboard');
     expect(html).toContain('Copied!');

@@ -171,7 +171,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
           background-color: ${resolved.codeBlockBackground};
           border: 1px solid ${resolved.borderColor};
           border-radius: 10px;
-          padding: 12px 14px;
+          padding: 32px 14px 12px;
           margin: 12px 0;
           overflow-x: auto;
           font-family: 'JetBrains Mono', monospace;
