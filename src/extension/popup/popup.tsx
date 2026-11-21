@@ -46,9 +46,34 @@ const Popup: React.FC = () => {
     'groq.com',
   ];
 
+  const ensureContentScript = async (tabId: number): Promise<boolean> => {
+    return new Promise((resolve) => {
+      chrome.tabs.sendMessage(tabId, { action: 'PING' }, async (res) => {
+        if (!chrome.runtime.lastError && res?.pong) {
+          resolve(true);
+          return;
+        }
+        try {
+          if (chrome.scripting && chrome.scripting.executeScript) {
+            await chrome.scripting.executeScript({
+              target: { tabId },
+              files: ['content/extractor.js'],
+            });
+            setTimeout(() => resolve(true), 150);
+          } else {
+            resolve(false);
+          }
+        } catch (err) {
+          console.warn('[Chat2PDF] Dynamic script injection failed', err);
+          resolve(false);
+        }
+      });
+    });
+  };
+
   useEffect(() => {
     if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
         if (tabs[0]?.url) {
           try {
             const url = new URL(tabs[0].url);
@@ -60,10 +85,11 @@ const Popup: React.FC = () => {
             console.log(`[Chat2PDF] Popup initialized for host: ${host} (supported=${supported})`);
 
             if (tabs[0]?.id && supported) {
+              await ensureContentScript(tabs[0].id);
               chrome.tabs.sendMessage(tabs[0].id, { action: 'EXTRACT_CHAT' }, (res) => {
                 if (res?.success && res.data?.messages) {
                   console.log(`[Chat2PDF] Initial DOM message count: ${res.data.messages.length}`);
-                  setMessageCount(res.data.messages.length);
+                  setMessageCount((prev) => (prev === null ? res.data.messages.length : prev));
                 }
               });
             }
@@ -180,6 +206,9 @@ const Popup: React.FC = () => {
         setLoading(false);
         return;
       }
+
+      console.log(`[Chat2PDF] Ensuring content script on tab ${tab.id}`);
+      await ensureContentScript(tab.id);
 
       console.log(`[Chat2PDF] Sending EXTRACT_FULL_CHAT request to tab ${tab.id}`);
 

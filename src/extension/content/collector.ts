@@ -130,9 +130,22 @@ export function findScrollContainer(selectors?: SiteSelectors): HTMLElement | nu
   if (typeof document === 'undefined') return null;
 
   if (selectors?.scrollContainer) {
-    const el = safeQuerySelector<HTMLElement>(document, selectors.scrollContainer);
-    if (el && el.scrollHeight > el.clientHeight) {
-      return el;
+    const elements = safeQuerySelectorAll<HTMLElement>(document, selectors.scrollContainer);
+    for (const el of elements) {
+      if (el.scrollHeight > el.clientHeight + 20) {
+        return el;
+      }
+    }
+    for (const el of elements) {
+      try {
+        const style = window.getComputedStyle(el);
+        if (
+          (style.overflowY === 'auto' || style.overflowY === 'scroll') &&
+          el.clientHeight > 100
+        ) {
+          return el;
+        }
+      } catch (e) {}
     }
   }
 
@@ -369,8 +382,8 @@ export async function collectFullConversation(
       const step = Math.max(250, Math.floor((scrollContainer.clientHeight || 600) * 0.8));
       scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop - step);
 
-      // Settle wait with DOM mutation watcher (150ms - 500ms)
-      await waitForSettle(scrollContainer, 150, 500);
+      // Settle wait with DOM mutation watcher (150ms - 700ms)
+      await waitForSettle(scrollContainer, 150, 700);
       expandCollapsedContent(selectors);
 
       const batch = extractVisibleTurns(selectors, turnStats);
@@ -378,6 +391,10 @@ export async function collectFullConversation(
 
       if (messageMap.size === lastSize && scrollContainer.scrollTop === 0) {
         consecutiveTopOrStable++;
+        if (consecutiveTopOrStable < 3) {
+          // Allow lazy batch network load at top
+          await new Promise((r) => setTimeout(r, 400));
+        }
       } else {
         consecutiveTopOrStable = 0;
         lastSize = messageMap.size;
