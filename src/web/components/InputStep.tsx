@@ -4,36 +4,11 @@ import type { Conversation } from '../../core/parser/types';
 import CorsNotice from './CorsNotice';
 import { Sparkles, Trash2, Clipboard, Upload, ArrowRight, FileText } from 'lucide-react';
 
-interface InputStepProps {
-  onParsed: (conversation: Conversation) => void;
-}
-
-export const InputStep: React.FC<InputStepProps> = ({ onParsed }) => {
-  const [text, setText] = useState('');
-  const [error, setError] = useState('');
-  const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleParse = () => {
-    if (!text.trim()) {
-      setError('Please paste your chat conversation text first.');
-      return;
-    }
-    try {
-      const conv = parseText(text);
-      if (conv.messages.length === 0) {
-        setError('Could not detect any messages. Try copying the conversation including names/roles.');
-        return;
-      }
-      setError('');
-      onParsed(conv);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to parse conversation.');
-    }
-  };
-
-  const loadSample = () => {
-    const sample = `User: What are the key advantages of using TypeScript over JavaScript?
+export const SAMPLES = [
+  {
+    id: 'tech',
+    label: 'Code & Tech',
+    text: `User: What are the key advantages of using TypeScript over JavaScript?
 
 Assistant: TypeScript offers several key advantages over standard JavaScript:
 
@@ -63,8 +38,77 @@ Assistant: Here is a quick breakdown:
 | Type System | Dynamic | Static & Structural |
 | Compilation Step | None | Transpiles to JS |
 | Tooling / IntelliSense | Basic | Rich & Predictive |
-| Learning Curve | Low | Moderate |`;
-    setText(sample);
+| Learning Curve | Low | Moderate |`,
+  },
+  {
+    id: 'science',
+    label: 'Science & Bio',
+    text: `User: Can you explain how CRISPR-Cas9 works and its primary clinical applications?
+
+Assistant: **CRISPR-Cas9** is a targeted genome editing technology derived from bacterial immune systems.
+
+### Mechanism of Action
+1. **Guide RNA (gRNA)**: A synthetic RNA sequence matches the target genomic sequence.
+2. **Cas9 Endonuclease**: The enzyme binds the gRNA and creates a double-strand break (DSB) at the target locus.
+3. **DNA Repair**: The cell repairs the break via non-homologous end joining (NHEJ) or homology-directed repair (HDR).
+
+### Key Clinical Applications
+- **Therapeutics**: Treatment of sickle cell anemia and beta-thalassemia.
+- **Agriculture**: Disease-resistant crop engineering.
+- **Biomedical Research**: Functional genomics and disease model creation.`,
+  },
+  {
+    id: 'strategy',
+    label: 'Product Strategy',
+    text: `User: What are the top 3 priorities for launching a developer-first tool?
+
+Assistant: When launching a developer-first tool, focus on these three foundational pillars:
+
+1. **Time-to-Value (TTV) < 5 Minutes**: Developers should go from landing page to working code in under five minutes without complex onboarding barriers.
+2. **Comprehensive & Accurate Docs**: Interactive examples, copy-pasteable snippets, and complete API references.
+3. **Fast Feedback Loops**: Active community channels and rapid bug resolution.
+
+### Launch Phase Checklist
+| Phase | Milestone | Success Metric |
+| :--- | :--- | :--- |
+| Alpha | 20 friendly teams | 80% weekly retention |
+| Beta | Public waitlist opening | 1,000 active users |
+| GA | General availability | Self-serve adoption |`,
+  },
+];
+
+interface InputStepProps {
+  onParsed: (conversation: Conversation) => void;
+}
+
+export const InputStep: React.FC<InputStepProps> = ({ onParsed }) => {
+  const [text, setText] = useState('');
+  const [error, setError] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const [selectedSampleIndex, setSelectedSampleIndex] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleParse = () => {
+    if (!text.trim()) {
+      setError('Please paste your chat conversation text first.');
+      return;
+    }
+    try {
+      const conv = parseText(text);
+      if (conv.messages.length === 0) {
+        setError('Could not detect any messages. Try copying the conversation including names/roles.');
+        return;
+      }
+      setError('');
+      onParsed(conv);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to parse conversation.');
+    }
+  };
+
+  const loadSample = (index: number = 0) => {
+    const chosen = SAMPLES[index] || SAMPLES[0];
+    setText(chosen.text);
     setError('');
   };
 
@@ -111,8 +155,26 @@ Assistant: Here is a quick breakdown:
   };
 
   const charCount = text.length;
+  const wordCount = text.trim() ? text.trim().split(/\s+/).filter(Boolean).length : 0;
   const lineCount = text ? text.split('\n').length : 0;
   const estimatedTokens = Math.max(0, Math.ceil(charCount / 4));
+
+  const detectedFormat = (() => {
+    if (!text.trim()) return null;
+    const trimmed = text.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        JSON.parse(trimmed);
+        return 'JSON Data';
+      } catch {
+        return 'JSON Fragment';
+      }
+    }
+    if (trimmed.includes('```') || trimmed.includes('| :---') || trimmed.includes('### ')) {
+      return 'Markdown';
+    }
+    return 'Plain Text';
+  })();
 
   return (
     <div className="space-y-6">
@@ -131,12 +193,34 @@ Assistant: Here is a quick breakdown:
         <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
-            onClick={loadSample}
+            onClick={() => loadSample(selectedSampleIndex)}
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 px-3 py-2 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/30 hover:bg-blue-100/60 transition-colors cursor-pointer"
+            title="Load sample chat conversation"
           >
             <Sparkles className="w-3.5 h-3.5" />
             Load Sample Chat
           </button>
+
+          <div className="inline-flex rounded-xl bg-gray-200/70 dark:bg-gray-800/80 p-0.5 text-xs font-medium">
+            {SAMPLES.map((s, idx) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => {
+                  setSelectedSampleIndex(idx);
+                  loadSample(idx);
+                }}
+                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                  selectedSampleIndex === idx
+                    ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-xs font-semibold'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+                title={`Select topic: ${s.label}`}
+              >
+                <span>{s.label}</span>
+              </button>
+            ))}
+          </div>
 
           <button
             type="button"
@@ -179,6 +263,17 @@ Assistant: Here is a quick breakdown:
             : 'border-gray-200/90 dark:border-gray-800 bg-white dark:bg-gray-900'
         } shadow-xs overflow-hidden`}
       >
+        {isDragging && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-blue-50/90 dark:bg-blue-950/90 backdrop-blur-xs border-2 border-dashed border-blue-500 rounded-2xl pointer-events-none">
+            <Upload className="w-10 h-10 text-blue-600 dark:text-blue-400 animate-bounce mb-2" />
+            <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+              Drop conversation file here
+            </p>
+            <p className="text-xs text-blue-600 dark:text-blue-300 mt-0.5">
+              Supports .txt, .md, .json chat files
+            </p>
+          </div>
+        )}
         <textarea
           rows={11}
           value={text}
@@ -191,12 +286,17 @@ Assistant: Here is a quick breakdown:
         />
 
         {/* Bottom meta bar */}
-        <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50/80 dark:bg-gray-950/50 border-t border-gray-100 dark:border-gray-800/80 text-[11px] text-gray-500 dark:text-gray-400">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50/80 dark:bg-gray-950/50 border-t border-gray-100 dark:border-gray-800/80 text-[11px] text-gray-500 dark:text-gray-400 flex-wrap gap-2">
+          <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
             <span className="flex items-center gap-1">
               <FileText className="w-3.5 h-3.5" />
-              {lineCount} lines • {charCount.toLocaleString()} chars • ~{estimatedTokens.toLocaleString()} tokens
+              {lineCount} lines • {wordCount.toLocaleString()} words • {charCount.toLocaleString()} chars • ~{estimatedTokens.toLocaleString()} tokens
             </span>
+            {detectedFormat && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-semibold text-[10px]">
+                {detectedFormat}
+              </span>
+            )}
           </div>
 
           {text && (

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseText } from '../src/core/parser/parseText';
 import { cleanText } from '../src/core/parser/cleaners';
+import { SAMPLES } from '../src/web/components/InputStep';
 
 const FIXTURE_CHAT = `
 You: Namaste! Kya aap mujhe 2+2 ka answer aur ek python code snippet de sakte ho? 👤
@@ -116,5 +117,17 @@ Assistant: I reviewed both files. Here is the summary.`;
     expect(conv.messages[0].content).toBe('What is the capital of France?');
     expect(conv.messages[1].role).toBe('assistant');
     expect(conv.messages[1].content).toBe('The capital of France is Paris.');
+  });
+
+  it('successfully parses all curated SAMPLES presets into valid conversations', () => {
+    expect(SAMPLES.length).toBeGreaterThanOrEqual(3);
+    for (const sample of SAMPLES) {
+      const conv = parseText(sample.text);
+      expect(conv.messages.length).toBeGreaterThanOrEqual(2);
+      expect(conv.messages[0].role).toBe('user');
+      expect(conv.messages[1].role).toBe('assistant');
+      expect(conv.messages[0].content.length).toBeGreaterThan(0);
+      expect(conv.messages[1].content.length).toBeGreaterThan(0);
+    }
   });
 });

@@ -62,6 +62,12 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
         e.preventDefault();
         activeTurnIdx = (activeTurnIdx - 1 + turns.length) % turns.length;
         turns[activeTurnIdx]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else if (e.key === 'b' || e.key === 'B') {
+        e.preventDefault();
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
       }
     };
     window.addEventListener('keydown', handleNavigation);
@@ -528,6 +534,18 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
                 <span className="text-gray-600 dark:text-gray-300">Previous message turn</span>
                 <kbd className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-mono text-[11px] font-semibold text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700">
                   K
+                </kbd>
+              </div>
+              <div className="flex items-center justify-between py-1.5 border-b border-gray-100 dark:border-gray-800">
+                <span className="text-gray-600 dark:text-gray-300">Jump to top</span>
+                <kbd className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-mono text-[11px] font-semibold text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700">
+                  T
+                </kbd>
+              </div>
+              <div className="flex items-center justify-between py-1.5 border-b border-gray-100 dark:border-gray-800">
+                <span className="text-gray-600 dark:text-gray-300">Jump to bottom</span>
+                <kbd className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-mono text-[11px] font-semibold text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700">
+                  B
                 </kbd>
               </div>
               <div className="flex items-center justify-between py-1.5 border-b border-gray-100 dark:border-gray-800">
