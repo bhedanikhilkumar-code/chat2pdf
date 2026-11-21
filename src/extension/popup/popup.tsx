@@ -44,6 +44,7 @@ const Popup: React.FC = () => {
     'claude.ai',
     'perplexity.ai',
     'groq.com',
+    'deepseek.com',
   ];
 
   const ensureContentScript = async (tabId: number): Promise<boolean> => {

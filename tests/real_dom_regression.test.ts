@@ -3,6 +3,7 @@ import { chromium } from 'playwright';
 import { claudeSelectors } from '../src/extension/content/selectors/claude';
 import { chatgptSelectors } from '../src/extension/content/selectors/chatgpt';
 import { geminiSelectors } from '../src/extension/content/selectors/gemini';
+import { deepseekSelectors } from '../src/extension/content/selectors/deepseek';
 import { extractVisibleTurns } from '../src/extension/content/extractor';
 
 describe('Real-World DOM Regression & Virtualization Tests', () => {
@@ -293,6 +294,75 @@ describe('Real-World DOM Regression & Virtualization Tests', () => {
     }, geminiSelectors);
     expect(geminiScroller).toBe('infinite-scroller');
 
+    // Test DeepSeek scroller
+    await page.setContent(`
+      <div class="chat-container">
+        <div class="chat-scroll overflow-y-auto" style="height: 400px; overflow-y: auto;">
+          <div style="height: 1200px;">DeepSeek Content</div>
+        </div>
+      </div>
+    `);
+
+    const deepseekScroller = await page.evaluate((selectors) => {
+      const elements = Array.from(document.querySelectorAll(selectors.scrollContainer));
+      for (const el of elements) {
+        if ((el as HTMLElement).scrollHeight > (el as HTMLElement).clientHeight + 20) {
+          return el.className;
+        }
+      }
+      return null;
+    }, deepseekSelectors);
+    expect(deepseekScroller).toContain('chat-scroll');
+
     await browser.close();
+  });
+
+  it('extracts turns from DeepSeek DOM structure with ds-markdown and user/assistant messages', async () => {
+    const browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage();
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <body>
+        <div class="chat-scroll overflow-y-auto">
+          <div class="chat-message ds-message ds-message-user">
+            <div class="ds-markdown">
+              <p>What is DeepSeek-R1?</p>
+            </div>
+          </div>
+          <div class="chat-message ds-message ds-message-assistant">
+            <div class="ds-markdown prose">
+              <p>DeepSeek-R1 is an open-weights reasoning model optimized using reinforcement learning.</p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await page.setContent(html);
+
+    const extracted = await page.evaluate((selectors) => {
+      const rawTurns = Array.from(document.querySelectorAll(selectors.messageContainer));
+      return rawTurns.map((turn, idx) => {
+        const isUser = turn.matches(selectors.userMessage) || turn.querySelector(selectors.userMessage) !== null;
+        const role = isUser ? 'user' : 'assistant';
+        const contentEl = turn.querySelector(selectors.messageContent) || turn;
+        return {
+          id: `ds_turn_${idx}`,
+          role,
+          content: (contentEl.textContent || '').trim(),
+        };
+      });
+    }, deepseekSelectors);
+
+    await browser.close();
+
+    expect(extracted.length).toBe(2);
+    expect(extracted[0].role).toBe('user');
+    expect(extracted[0].content).toBe('What is DeepSeek-R1?');
+    expect(extracted[1].role).toBe('assistant');
+    expect(extracted[1].content).toContain('DeepSeek-R1 is an open-weights reasoning model');
   });
 });

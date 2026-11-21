@@ -29,7 +29,9 @@
         "https://gemini.google.com/*",
         "https://claude.ai/*",
         "https://www.perplexity.ai/*",
-        "https://groq.com/*"
+        "https://perplexity.ai/*",
+        "https://groq.com/*",
+        "https://chat.deepseek.com/*"
       ],
       "js": [
         "content/extractor.js"
