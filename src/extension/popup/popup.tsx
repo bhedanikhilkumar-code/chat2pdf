@@ -14,6 +14,9 @@ import {
   MoreVertical,
   ClipboardCheck,
 } from 'lucide-react';
+import { buildHtmlContent } from '../../core/exporters/exportHtml';
+import { buildTxtContent } from '../../core/exporters/exportTxt';
+import type { Conversation } from '../../core/parser/types';
 
 interface CompletenessState {
   status: 'Complete' | 'Possibly incomplete';
@@ -183,9 +186,16 @@ const Popup: React.FC = () => {
     });
   };
 
-  const handleExport = async (forceProceed = false, quickFormat?: 'md' | 'json') => {
+  const handleExport = async (
+    forceProceed = false,
+    quickFormat?: 'md' | 'json' | 'html' | 'txt'
+  ) => {
     setLoading(true);
-    setStatus(quickFormat ? 'Quick exporting markdown...' : 'Loading conversation & scrolling older messages...');
+    setStatus(
+      quickFormat
+        ? `Quick exporting ${quickFormat}...`
+        : 'Loading conversation & scrolling older messages...'
+    );
     setCompleteness(null);
     setFriendlyError(null);
     setRawErrorDetails(null);
@@ -306,6 +316,68 @@ const Popup: React.FC = () => {
             document.body.removeChild(a);
             setTimeout(() => URL.revokeObjectURL(url), 1000);
             setStatus(`Downloaded ${safeTitle}.json (${messages.length} messages)`);
+            setLoading(false);
+            return;
+          }
+
+          // If Quick HTML export was requested, download directly without leaving tab
+          if (quickFormat === 'html') {
+            const conversationObj: Conversation = {
+              title: title || 'Chat Conversation',
+              source: (source || 'chatgpt') as any,
+              exportedAt: new Date().toISOString(),
+              messages,
+              themeSnapshot: response.data.themeSnapshot,
+            };
+            const safeTitle = (title || 'chat').replace(/[^a-z0-9_-]/gi, '_').slice(0, 40);
+            const htmlContent = buildHtmlContent(conversationObj, {
+              format: 'html',
+              fileName: safeTitle,
+              pageStyle: 'light',
+              filterMode: 'all',
+              watermarkText: 'Made with Chat2PDF',
+            });
+            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${safeTitle}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            setStatus(`Downloaded ${safeTitle}.html (${messages.length} messages)`);
+            setLoading(false);
+            return;
+          }
+
+          // If Quick TXT export was requested, download directly without leaving tab
+          if (quickFormat === 'txt') {
+            const conversationObj: Conversation = {
+              title: title || 'Chat Conversation',
+              source: (source || 'chatgpt') as any,
+              exportedAt: new Date().toISOString(),
+              messages,
+              themeSnapshot: response.data.themeSnapshot,
+            };
+            const safeTitle = (title || 'chat').replace(/[^a-z0-9_-]/gi, '_').slice(0, 40);
+            const txtContent = buildTxtContent(conversationObj, {
+              format: 'txt',
+              fileName: safeTitle,
+              pageStyle: 'light',
+              filterMode: 'all',
+              watermarkText: 'Made with Chat2PDF',
+            });
+            const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${safeTitle}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            setStatus(`Downloaded ${safeTitle}.txt (${messages.length} messages)`);
             setLoading(false);
             return;
           }
@@ -494,47 +566,93 @@ const Popup: React.FC = () => {
           </button>
 
           {!loading && isSupported && (
-            <div style={{ display: 'flex', gap: '6px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
               <button
                 onClick={() => handleExport(false, 'md')}
                 title="Instantly download chat as a markdown (.md) file"
                 style={{
-                  padding: '11px 10px',
+                  padding: '9px 4px',
                   backgroundColor: '#f1f5f9',
                   color: '#334155',
                   border: '1px solid #cbd5e1',
-                  borderRadius: '12px',
-                  fontSize: '11.5px',
+                  borderRadius: '10px',
+                  fontSize: '11px',
                   fontWeight: 600,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'center',
                   gap: '4px',
                 }}
               >
-                <Download style={{ width: '13px', height: '13px', color: '#0284c7' }} />
-                <span>Quick .md</span>
+                <Download style={{ width: '12px', height: '12px', color: '#0284c7' }} />
+                <span>.md</span>
               </button>
 
               <button
                 onClick={() => handleExport(false, 'json')}
                 title="Instantly download chat as raw JSON (.json) file"
                 style={{
-                  padding: '11px 10px',
+                  padding: '9px 4px',
                   backgroundColor: '#f1f5f9',
                   color: '#334155',
                   border: '1px solid #cbd5e1',
-                  borderRadius: '12px',
-                  fontSize: '11.5px',
+                  borderRadius: '10px',
+                  fontSize: '11px',
                   fontWeight: 600,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'center',
                   gap: '4px',
                 }}
               >
-                <Download style={{ width: '13px', height: '13px', color: '#6366f1' }} />
-                <span>Quick .json</span>
+                <Download style={{ width: '12px', height: '12px', color: '#6366f1' }} />
+                <span>.json</span>
+              </button>
+
+              <button
+                onClick={() => handleExport(false, 'html')}
+                title="Instantly download chat as standalone HTML (.html) file"
+                style={{
+                  padding: '9px 4px',
+                  backgroundColor: '#f1f5f9',
+                  color: '#334155',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '10px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '4px',
+                }}
+              >
+                <Download style={{ width: '12px', height: '12px', color: '#ea580c' }} />
+                <span>.html</span>
+              </button>
+
+              <button
+                onClick={() => handleExport(false, 'txt')}
+                title="Instantly download chat as formatted plain text (.txt) file"
+                style={{
+                  padding: '9px 4px',
+                  backgroundColor: '#f1f5f9',
+                  color: '#334155',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '10px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '4px',
+                }}
+              >
+                <Download style={{ width: '12px', height: '12px', color: '#059669' }} />
+                <span>.txt</span>
               </button>
             </div>
           )}

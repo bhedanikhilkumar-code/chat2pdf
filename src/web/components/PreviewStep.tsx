@@ -118,6 +118,31 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
     setTimeout(() => setCopiedFiltered(false), 2000);
   };
 
+  const handleExcludeAll = () => {
+    const next = new Set(excludedIndices);
+    displayedMessages.forEach((m) => next.add(m.index));
+    setExcludedIndices(next);
+  };
+
+  const handleInvertSelection = () => {
+    const next = new Set<number>();
+    displayedMessages.forEach((m) => {
+      if (!excludedIndices.has(m.index)) {
+        next.add(m.index);
+      }
+    });
+    conversation.messages.forEach((m) => {
+      if (!displayedMessages.some((dm) => dm.index === m.index) && excludedIndices.has(m.index)) {
+        next.add(m.index);
+      }
+    });
+    setExcludedIndices(next);
+  };
+
+  const handleRestoreAll = () => {
+    setExcludedIndices(new Set());
+  };
+
   const handleContinue = () => {
     if (excludedIndices.size > 0) {
       const updated: Conversation = {
@@ -240,7 +265,7 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
           )}
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-wrap">
           <button
             type="button"
             onClick={handleCopyFiltered}
@@ -260,11 +285,29 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
             )}
           </button>
 
+          <button
+            type="button"
+            onClick={handleInvertSelection}
+            className="text-xs px-2.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1 justify-center shadow-xs"
+            title="Invert selection of excluded turns"
+          >
+            <span>Invert</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleExcludeAll}
+            className="text-xs px-2.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1 justify-center shadow-xs"
+            title="Exclude all displayed turns from export"
+          >
+            <span>Exclude All</span>
+          </button>
+
           {excludedIndices.size > 0 && (
             <button
               type="button"
-              onClick={() => setExcludedIndices(new Set())}
-              className="text-xs px-3 py-2 rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 hover:bg-red-100/70 font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1.5 justify-center"
+              onClick={handleRestoreAll}
+              className="text-xs px-2.5 py-2 rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 hover:bg-red-100/70 font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1 justify-center"
               title="Restore all excluded turns"
             >
               <span>Restore all ({excludedIndices.size})</span>
