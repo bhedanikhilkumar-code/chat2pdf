@@ -65,6 +65,25 @@ export default function App() {
     }
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (currentStep === 2) {
+          setCurrentStep(1);
+        } else if (currentStep === 1) {
+          setCurrentStep(0);
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        if (currentStep === 1 && conversation) {
+          setCurrentStep(2);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentStep, conversation]);
+
   const handleParsed = (conv: Conversation) => {
     setConversation(conv);
     setCurrentStep(1);

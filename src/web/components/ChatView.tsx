@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { Conversation, ChatMessage, PageStyle } from '../../core/parser/types';
 import { resolveTheme } from '../../core/theme/resolveTheme';
 import { marked } from 'marked';
@@ -33,6 +33,43 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const resolved = resolveTheme(conversation.themeSnapshot, pageStyle, conversation.source);
   const messages = messagesOverride || conversation.messages;
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const preElements = containerRef.current.querySelectorAll('pre');
+    preElements.forEach((pre) => {
+      if (!pre.querySelector('.chat-view-copy-code-btn')) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'chat-view-copy-code-btn';
+        btn.title = 'Copy code';
+        btn.textContent = 'Copy';
+        pre.style.position = 'relative';
+        pre.appendChild(btn);
+      }
+    });
+  }, [messages]);
+
+  const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    const copyBtn = target.closest('.chat-view-copy-code-btn') as HTMLButtonElement | null;
+    if (copyBtn) {
+      const pre = copyBtn.closest('pre');
+      const code = pre?.querySelector('code');
+      const textToCopy = code?.textContent || pre?.textContent || '';
+      if (textToCopy) {
+        const cleanCode = textToCopy.replace(/^(Copy|Copied!)/, '').trim();
+        navigator.clipboard.writeText(cleanCode);
+        copyBtn.textContent = 'Copied!';
+        copyBtn.classList.add('copied');
+        setTimeout(() => {
+          copyBtn.textContent = 'Copy';
+          copyBtn.classList.remove('copied');
+        }, 1800);
+      }
+    }
+  };
 
   const handleCopy = async (text: string, index: number) => {
     try {
@@ -92,6 +129,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   return (
     <div
+      ref={containerRef}
+      onClick={handleContainerClick}
       className={`chat-view-container ${className}`}
       style={{
         backgroundColor: resolved.pageBackground,
@@ -124,6 +163,30 @@ export const ChatView: React.FC<ChatViewProps> = ({
           font-size: 13px;
           line-height: 1.45;
           position: relative;
+        }
+        .chat-view-copy-code-btn {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          font-size: 11px;
+          font-weight: 500;
+          padding: 3px 8px;
+          border-radius: 6px;
+          background-color: ${resolved.userBubbleBackground};
+          color: ${resolved.textColor};
+          border: 1px solid ${resolved.borderColor};
+          cursor: pointer;
+          opacity: 0.8;
+          transition: all 0.15s ease;
+          z-index: 2;
+          font-family: system-ui, -apple-system, sans-serif;
+        }
+        .chat-view-copy-code-btn:hover {
+          opacity: 1;
+        }
+        .chat-view-copy-code-btn.copied {
+          color: #10b981;
+          border-color: #10b981;
         }
         .chat-view-prose pre[data-lang]::before {
           content: attr(data-lang);

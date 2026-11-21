@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  Printer,
 } from 'lucide-react';
 
 interface ExportStepProps {
@@ -62,6 +63,7 @@ export const ExportStep: React.FC<ExportStepProps> = ({
   );
   const [activeExportingId, setActiveExportingId] = useState<string | null>(null);
   const [copiedError, setCopiedError] = useState(false);
+  const [copiedChat, setCopiedChat] = useState(false);
   const [showHandwritingPanel, setShowHandwritingPanel] = useState(false);
 
   const formats: FormatCard[] = [
@@ -179,6 +181,23 @@ export const ExportStep: React.FC<ExportStepProps> = ({
       setCopiedError(true);
       setTimeout(() => setCopiedError(false), 2000);
     }
+  };
+
+  const handleCopyChat = async () => {
+    const lines: string[] = [];
+    const title = customFileName.trim() || conversation.title || 'Chat Conversation';
+    lines.push(`# ${title}\n`);
+    conversation.messages.forEach((m) => {
+      lines.push(`### ${m.role === 'user' ? '👤 User' : '🤖 Assistant'}\n\n${m.content}\n`);
+      if (m.attachments && m.attachments.length > 0) {
+        lines.push(`*Attachments: ${m.attachments.map((a) => a.name).join(', ')}*\n`);
+      }
+      lines.push('---\n');
+    });
+    lines.push(`*Exported with Chat2PDF • chat2pdf.app*\n`);
+    await navigator.clipboard.writeText(lines.join('\n'));
+    setCopiedChat(true);
+    setTimeout(() => setCopiedChat(false), 2000);
   };
 
   return (
@@ -401,7 +420,7 @@ export const ExportStep: React.FC<ExportStepProps> = ({
       )}
 
       {/* Sticky Bottom Action Bar on Mobile / Desktop Footer */}
-      <div className="fixed sm:static bottom-0 left-0 right-0 p-3 sm:p-0 bg-white/95 dark:bg-gray-900/95 sm:bg-transparent backdrop-blur-md sm:backdrop-blur-none border-t sm:border-t-0 border-gray-200 dark:border-gray-800 z-40 flex items-center justify-between gap-3">
+      <div className="fixed sm:static bottom-0 left-0 right-0 p-3 sm:p-0 bg-white/95 dark:bg-gray-900/95 sm:bg-transparent backdrop-blur-md sm:backdrop-blur-none border-t sm:border-t-0 border-gray-200 dark:border-gray-800 z-40 flex flex-wrap items-center justify-between gap-3">
         <button
           type="button"
           onClick={onBack}
@@ -411,15 +430,46 @@ export const ExportStep: React.FC<ExportStepProps> = ({
           <span>Back to Preview</span>
         </button>
 
-        <button
-          type="button"
-          onClick={() => handleCardClick(selectedFormat)}
-          disabled={isExporting}
-          className="min-h-[44px] px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold text-xs sm:text-sm transition-all shadow-md shadow-blue-600/20 flex items-center gap-2 cursor-pointer"
-        >
-          <Download className="w-4 h-4" />
-          <span>Download {selectedFormat.toUpperCase()}</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={handleCopyChat}
+            className="min-h-[44px] px-3.5 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 font-medium text-xs sm:text-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+            title="Copy full conversation formatted as markdown to clipboard"
+          >
+            {copiedChat ? (
+              <>
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Copied!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4" />
+                <span>Copy Full Chat</span>
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="min-h-[44px] px-3.5 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 font-medium text-xs sm:text-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+            title="Print or save via system browser print"
+          >
+            <Printer className="w-4 h-4" />
+            <span>Print</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleCardClick(selectedFormat)}
+            disabled={isExporting}
+            className="min-h-[44px] px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold text-xs sm:text-sm transition-all shadow-md shadow-blue-600/20 flex items-center gap-2 cursor-pointer"
+          >
+            <Download className="w-4 h-4" />
+            <span>Download {selectedFormat.toUpperCase()}</span>
+          </button>
+        </div>
       </div>
     </div>
   );

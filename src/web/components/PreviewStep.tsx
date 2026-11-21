@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { Conversation, FilterMode } from '../../core/parser/types';
 import { filterMessages } from '../../core/parser/filters';
 import { ChatView } from './ChatView';
@@ -21,6 +21,27 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
 }) => {
   const [excludedIndices, setExcludedIndices] = useState<Set<number>>(new Set());
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // If user presses '/', focus search input unless already inside an input or textarea
+      if (
+        e.key === '/' &&
+        document.activeElement?.tagName !== 'INPUT' &&
+        document.activeElement?.tagName !== 'TEXTAREA'
+      ) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+      if (e.key === 'Escape' && document.activeElement === searchInputRef.current) {
+        setSearchQuery('');
+        searchInputRef.current?.blur();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const filteredMessages = filterMessages(conversation.messages, filterMode);
 
@@ -128,10 +149,11 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           <input
+            ref={searchInputRef}
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search keywords within conversation messages..."
+            placeholder="Search keywords within conversation (Press '/' to focus)..."
             className="w-full pl-10 pr-10 py-2 text-xs sm:text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-xs"
           />
           {searchQuery && (

@@ -12,6 +12,23 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-[100dvh] flex flex-col bg-gray-50 dark:bg-gray-950 transition-colors">
+      <style>{`
+        @media print {
+          header, footer, nav, button, .no-print, input, [role="tablist"] {
+            display: none !important;
+          }
+          body, main, .chat-view-container {
+            background: #ffffff !important;
+            color: #000000 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            max-height: none !important;
+            overflow: visible !important;
+            box-shadow: none !important;
+            border: none !important;
+          }
+        }
+      `}</style>
       {/* Header */}
       <header className="border-b border-gray-200/80 dark:border-gray-800/80 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
