@@ -8,6 +8,7 @@ export function buildJsonContent(
   options: ExportOptions
 ): string {
   const messages = filterMessages(conversation.messages, options.filterMode);
+  const watermark = options.watermarkText !== undefined ? options.watermarkText : WATERMARK_TEXT;
 
   const exportData = {
     title: conversation.title || 'Conversation',
@@ -22,7 +23,7 @@ export function buildJsonContent(
       ...(m.timestamp ? { timestamp: m.timestamp } : {}),
       ...(m.attachments && m.attachments.length > 0 ? { attachments: m.attachments } : {}),
     })),
-    watermark: WATERMARK_TEXT,
+    watermark,
   };
 
   return JSON.stringify(exportData, null, 2);

@@ -62,6 +62,8 @@ export const ExportStep: React.FC<ExportStepProps> = ({
   const [customFileName, setCustomFileName] = useState<string>(
     conversation.title || 'chat'
   );
+  const [includeWatermark, setIncludeWatermark] = useState<boolean>(true);
+  const [customWatermarkText, setCustomWatermarkText] = useState<string>('Made with Chat2PDF');
   const [activeExportingId, setActiveExportingId] = useState<string | null>(null);
   const [copiedError, setCopiedError] = useState(false);
   const [copiedChat, setCopiedChat] = useState(false);
@@ -155,6 +157,9 @@ export const ExportStep: React.FC<ExportStepProps> = ({
         pageStyle,
         imageMode,
         fileName: customFileName.trim() || conversation.title || 'chat',
+        watermarkText: includeWatermark
+          ? customWatermarkText.trim() || undefined
+          : '',
       });
     } finally {
       setActiveExportingId(null);
@@ -170,6 +175,9 @@ export const ExportStep: React.FC<ExportStepProps> = ({
         pageStyle,
         handwriting: hwOptions,
         fileName: customFileName.trim() || conversation.title || 'chat',
+        watermarkText: includeWatermark
+          ? customWatermarkText.trim() || undefined
+          : '',
       });
     } finally {
       setActiveExportingId(null);
@@ -359,6 +367,44 @@ export const ExportStep: React.FC<ExportStepProps> = ({
             Dark
           </button>
         </div>
+      </div>
+
+      {/* Watermark & Branding Customization */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200/80 dark:border-gray-800">
+        <div className="flex items-center gap-2">
+          <input
+            id="watermark-toggle-checkbox"
+            type="checkbox"
+            checked={includeWatermark}
+            onChange={(e) => setIncludeWatermark(e.target.checked)}
+            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-700 cursor-pointer"
+          />
+          <label htmlFor="watermark-toggle-checkbox" className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+            Include watermark:
+          </label>
+        </div>
+
+        {includeWatermark && (
+          <div className="flex items-center gap-2 w-full sm:max-w-md">
+            <input
+              type="text"
+              value={customWatermarkText}
+              onChange={(e) => setCustomWatermarkText(e.target.value)}
+              placeholder="e.g. Made with Chat2PDF, Confidential..."
+              className="w-full px-3 py-1.5 text-xs sm:text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-xs"
+            />
+            {customWatermarkText !== 'Made with Chat2PDF' && (
+              <button
+                type="button"
+                onClick={() => setCustomWatermarkText('Made with Chat2PDF')}
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline shrink-0 px-1.5 py-1 cursor-pointer"
+                title="Reset to default watermark"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Formats Grid: 2 columns on phone, 4 columns on desktop */}

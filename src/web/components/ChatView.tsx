@@ -14,6 +14,7 @@ export interface ChatViewProps {
   maxHeight?: string | number;
   showWatermark?: boolean;
   allowActions?: boolean;
+  density?: 'comfortable' | 'compact';
   excludedIndices?: Set<number>;
   onToggleExclude?: (index: number) => void;
 }
@@ -27,6 +28,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   maxHeight,
   showWatermark = false,
   allowActions = true,
+  density = 'comfortable',
   excludedIndices,
   onToggleExclude,
 }) => {
@@ -39,13 +41,26 @@ export const ChatView: React.FC<ChatViewProps> = ({
     if (!containerRef.current) return;
     const preElements = containerRef.current.querySelectorAll('pre');
     preElements.forEach((pre) => {
+      pre.style.position = 'relative';
+
+      // Language badge
+      if (!pre.querySelector('.chat-view-code-lang')) {
+        const code = pre.querySelector('code');
+        const langMatch = code?.className.match(/language-([a-zA-Z0-9#+_-]+)/);
+        if (langMatch && langMatch[1]) {
+          const langBadge = document.createElement('span');
+          langBadge.className = 'chat-view-code-lang';
+          langBadge.textContent = langMatch[1].toUpperCase();
+          pre.appendChild(langBadge);
+        }
+      }
+
       if (!pre.querySelector('.chat-view-copy-code-btn')) {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'chat-view-copy-code-btn';
         btn.title = 'Copy code';
         btn.textContent = 'Copy';
-        pre.style.position = 'relative';
         pre.appendChild(btn);
       }
     });
@@ -188,6 +203,23 @@ export const ChatView: React.FC<ChatViewProps> = ({
           color: #10b981;
           border-color: #10b981;
         }
+        .chat-view-code-lang {
+          position: absolute;
+          top: 8px;
+          left: 10px;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.5px;
+          padding: 2px 6px;
+          border-radius: 4px;
+          background-color: ${resolved.userBubbleBackground};
+          color: ${resolved.mutedText};
+          border: 1px solid ${resolved.borderColor};
+          opacity: 0.85;
+          user-select: none;
+          pointer-events: none;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
         .chat-view-prose pre[data-lang]::before {
           content: attr(data-lang);
           display: block;
@@ -285,7 +317,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         )}
 
         {/* Message Turns */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: density === 'compact' ? '12px' : '24px' }}>
           {messages.map((m, idx) => {
             const isUser = m.role === 'user';
             const turnIdx = m.index !== undefined ? m.index : idx;
@@ -402,10 +434,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       maxWidth: '82%',
                       backgroundColor: resolved.userBubbleBackground,
                       color: resolved.userBubbleText,
-                      padding: '12px 18px',
+                      padding: density === 'compact' ? '8px 14px' : '12px 18px',
                       borderRadius: '20px',
                       borderBottomRightRadius: '4px',
-                      fontSize: '14.5px',
+                      fontSize: density === 'compact' ? '13px' : '14.5px',
                       boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
                       textDecoration: isExcluded ? 'line-through' : undefined,
                     }}
@@ -606,9 +638,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 <div
                   style={{
                     width: '100%',
-                    fontSize: '14.5px',
+                    fontSize: density === 'compact' ? '13px' : '14.5px',
                     color: resolved.textColor,
-                    paddingLeft: '34px',
+                    paddingLeft: density === 'compact' ? '28px' : '34px',
                     boxSizing: 'border-box',
                     textDecoration: isExcluded ? 'line-through' : undefined,
                   }}

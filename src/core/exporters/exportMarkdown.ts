@@ -14,9 +14,12 @@ export function buildMarkdownContent(
   options: ExportOptions
 ): string {
   const messages = filterMessages(conversation.messages, options.filterMode);
+  const watermark = options.watermarkText !== undefined ? options.watermarkText : WATERMARK_TEXT;
 
   if (messages.length === 0) {
-    return `*No messages to export.*\n\n---\n*${WATERMARK_TEXT}*\n`;
+    return watermark
+      ? `*No messages to export.*\n\n---\n*${watermark}*\n`
+      : `*No messages to export.*\n`;
   }
 
   const parts: string[] = [];
@@ -54,9 +57,11 @@ export function buildMarkdownContent(
     }
   }
 
-  parts.push('---');
-  parts.push(`*${WATERMARK_TEXT}*`);
-  parts.push('');
+  if (watermark) {
+    parts.push('---');
+    parts.push(`*${watermark}*`);
+    parts.push('');
+  }
 
   return parts.join('\n');
 }

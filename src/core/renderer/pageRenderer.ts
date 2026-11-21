@@ -226,6 +226,7 @@ export function buildPaginatedDom(
 ): HTMLElement[] {
   const messages = filterMessages(conversation.messages, options.filterMode);
   const resolved = resolveTheme(conversation.themeSnapshot, options.pageStyle, conversation.source);
+  const watermark = options.watermarkText !== undefined ? options.watermarkText : WATERMARK_TEXT;
   const dynamicStyles = buildPageStyles(resolved);
 
   // Hidden offscreen container for measurement
@@ -360,7 +361,7 @@ export function buildPaginatedDom(
     footerDiv.style.color = resolved.mutedText;
     footerDiv.innerHTML = `
       <span>Page ${idx + 1} of ${totalPages}</span>
-      <span class="chat2pdf-watermark" style="color: ${resolved.mutedText};">${WATERMARK_TEXT}</span>
+      ${watermark ? `<span class="chat2pdf-watermark" style="color: ${resolved.mutedText};">${watermark}</span>` : ''}
     `;
 
     pageEl.appendChild(contentWrapper);

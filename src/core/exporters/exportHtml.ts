@@ -71,6 +71,7 @@ export function buildHtmlContent(
 ): string {
   const resolved = resolveTheme(conversation.themeSnapshot, options.pageStyle, conversation.source);
   const messages = filterMessages(conversation.messages, options.filterMode);
+  const watermark = options.watermarkText !== undefined ? options.watermarkText : WATERMARK_TEXT;
 
   const title = options.fileName || conversation.title || 'Chat Conversation';
   const siteName = getSiteDisplayName(resolved.source);
@@ -325,7 +326,7 @@ export function buildHtmlContent(
     </div>
 
     <div class="footer">
-      <span>${WATERMARK_TEXT}</span>
+      <span>${escapeHtml(watermark)}</span>
     </div>
   </div>
 </body>

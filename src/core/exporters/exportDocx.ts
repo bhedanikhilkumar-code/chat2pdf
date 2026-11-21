@@ -323,7 +323,7 @@ export function buildDocxDocument(
                     color: mutedColor,
                   }),
                   new TextRun({
-                    text: `   •   ${WATERMARK_TEXT}`,
+                    text: `   •   ${options.watermarkText !== undefined ? options.watermarkText : WATERMARK_TEXT}`,
                     font: 'Calibri',
                     size: 18,
                     color: mutedColor,

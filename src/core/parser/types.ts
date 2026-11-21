@@ -65,6 +65,7 @@ export interface ExportOptions {
   handwriting?: HandwritingOptions;
   includeTitle?: boolean;
   fileName?: string;
+  watermarkText?: string;
 }
 
 export interface SiteSelectors {

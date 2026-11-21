@@ -63,6 +63,7 @@ export function buildPptxPresentation(
   options: ExportOptions
 ): PptxGenJS {
   const messages = filterMessages(conversation.messages, options.filterMode);
+  const watermark = options.watermarkText !== undefined ? options.watermarkText : WATERMARK_TEXT;
   const resolved = resolveTheme(conversation.themeSnapshot, options.pageStyle, conversation.source);
   const isDark = resolved.mode === 'dark';
 
@@ -92,7 +93,7 @@ export function buildPptxPresentation(
     objects: [
       {
         text: {
-          text: WATERMARK_TEXT,
+          text: watermark,
           options: {
             x: 9.5,
             y: 7.05,
@@ -141,7 +142,7 @@ export function buildPptxPresentation(
     fontFace: 'Arial',
   });
   // Watermark on title slide
-  titleSlide.addText(WATERMARK_TEXT, {
+  titleSlide.addText(watermark, {
     x: 9.5,
     y: 7.05,
     w: 3.5,

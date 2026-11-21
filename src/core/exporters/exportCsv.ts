@@ -17,6 +17,7 @@ export function buildCsvContent(
   options: ExportOptions
 ): string {
   const messages = filterMessages(conversation.messages, options.filterMode);
+  const watermark = options.watermarkText !== undefined ? options.watermarkText : WATERMARK_TEXT;
 
   const rows: CsvRow[] = messages.map((msg, i) => ({
     index: i + 1,
@@ -31,12 +32,14 @@ export function buildCsvContent(
     rows.push({ index: 0, role: '', message: 'No messages to export.', attachments: '' });
   }
 
-  rows.push({
-    index: '',
-    role: 'watermark',
-    message: WATERMARK_TEXT,
-    attachments: '',
-  });
+  if (watermark) {
+    rows.push({
+      index: '',
+      role: 'watermark',
+      message: watermark,
+      attachments: '',
+    });
+  }
 
   return Papa.unparse(rows, {
     columns: ['index', 'role', 'message', 'attachments'],

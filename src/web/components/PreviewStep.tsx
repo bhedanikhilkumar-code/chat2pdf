@@ -22,6 +22,7 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
   const [excludedIndices, setExcludedIndices] = useState<Set<number>>(new Set());
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [copiedFiltered, setCopiedFiltered] = useState<boolean>(false);
+  const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable');
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -169,8 +170,35 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
           </div>
         </div>
 
-        {/* Filter Chips */}
-        <div className="flex items-center gap-1.5 flex-wrap">
+        {/* Density & Filter Chips */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="inline-flex rounded-xl bg-gray-200/70 dark:bg-gray-800/80 p-0.5 text-xs font-medium">
+            <button
+              type="button"
+              onClick={() => setDensity('comfortable')}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                density === 'comfortable'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-xs font-semibold'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              Normal
+            </button>
+            <button
+              type="button"
+              onClick={() => setDensity('compact')}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                density === 'compact'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-xs font-semibold'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              Compact
+            </button>
+          </div>
+
+          <div className="h-4 w-px bg-gray-300 dark:bg-gray-700 mx-1 hidden sm:block" />
+
           {filterOptions.map((opt) => (
             <button
               key={opt.id}
@@ -255,6 +283,7 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
           <ChatView
             conversation={conversation}
             messagesOverride={displayedMessages}
+            density={density}
             maxHeight="520px"
             excludedIndices={excludedIndices}
             onToggleExclude={toggleExclude}
