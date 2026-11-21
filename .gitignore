@@ -2,6 +2,7 @@ node_modules
 dist
 dist-extension
 dist-web-ext
+release/
 .env
 .env.*
 *.local
