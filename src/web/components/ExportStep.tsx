@@ -1,5 +1,16 @@
 import React, { useState } from 'react';
-import type { Conversation, ExportFormat, ExportOptions, FilterMode, HandwritingOptions, ImageMode, PageStyle } from '../../core/parser/types';
+import type {
+  Conversation,
+  ExportFormat,
+  ExportOptions,
+  FilterMode,
+  HandwritingOptions,
+  ImageMode,
+  JsonFormat,
+  PageOrientation,
+  PageSize,
+  PageStyle,
+} from '../../core/parser/types';
 import { HandwritingControls } from './HandwritingControls';
 import {
   FileText,
@@ -59,6 +70,9 @@ export const ExportStep: React.FC<ExportStepProps> = ({
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('pdf');
   const [formatCategory, setFormatCategory] = useState<FormatCategory>('all');
   const [imageMode, setImageMode] = useState<ImageMode>('long');
+  const [pageSize, setPageSize] = useState<PageSize>('a4');
+  const [pageOrientation, setPageOrientation] = useState<PageOrientation>('portrait');
+  const [jsonFormat, setJsonFormat] = useState<JsonFormat>('pretty');
   const [pageStyle, setPageStyle] = useState<PageStyle>(
     conversation.themeSnapshot ? 'match' : 'light'
   );
@@ -167,6 +181,9 @@ export const ExportStep: React.FC<ExportStepProps> = ({
         filterMode,
         pageStyle,
         imageMode,
+        pageSize,
+        pageOrientation,
+        jsonFormat,
         fileName: customFileName.trim() || conversation.title || 'chat',
         watermarkText: includeWatermark
           ? customWatermarkText.trim() || undefined
@@ -184,6 +201,8 @@ export const ExportStep: React.FC<ExportStepProps> = ({
         format: 'handwriting',
         filterMode,
         pageStyle,
+        pageSize,
+        pageOrientation,
         handwriting: hwOptions,
         fileName: customFileName.trim() || conversation.title || 'chat',
         watermarkText: includeWatermark
@@ -417,6 +436,100 @@ export const ExportStep: React.FC<ExportStepProps> = ({
           </div>
         )}
       </div>
+
+      {/* PDF Page Setup selector (Only shown when PDF is selected) */}
+      {selectedFormat === 'pdf' && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200/80 dark:border-gray-800">
+          <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
+            PDF page setup:
+          </span>
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Page Size */}
+            <div className="inline-flex rounded-xl bg-gray-200/70 dark:bg-gray-900/80 p-0.5 text-xs font-medium">
+              <button
+                type="button"
+                onClick={() => setPageSize('a4')}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  pageSize === 'a4'
+                    ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-xs font-semibold'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                A4
+              </button>
+              <button
+                type="button"
+                onClick={() => setPageSize('letter')}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  pageSize === 'letter'
+                    ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-xs font-semibold'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                US Letter
+              </button>
+            </div>
+            {/* Orientation */}
+            <div className="inline-flex rounded-xl bg-gray-200/70 dark:bg-gray-900/80 p-0.5 text-xs font-medium">
+              <button
+                type="button"
+                onClick={() => setPageOrientation('portrait')}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  pageOrientation === 'portrait'
+                    ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-xs font-semibold'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                Portrait
+              </button>
+              <button
+                type="button"
+                onClick={() => setPageOrientation('landscape')}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  pageOrientation === 'landscape'
+                    ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-xs font-semibold'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                Landscape
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* JSON formatting selector (Only shown when JSON is selected) */}
+      {selectedFormat === 'json' && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200/80 dark:border-gray-800">
+          <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
+            JSON layout:
+          </span>
+          <div className="inline-flex rounded-xl bg-gray-200/70 dark:bg-gray-900/80 p-0.5 text-xs font-medium">
+            <button
+              type="button"
+              onClick={() => setJsonFormat('pretty')}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                jsonFormat === 'pretty'
+                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-xs font-semibold'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              Pretty / Indented
+            </button>
+            <button
+              type="button"
+              onClick={() => setJsonFormat('compact')}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                jsonFormat === 'compact'
+                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-xs font-semibold'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              Compact / Minified
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Image layout selector (Only shown when PNG or JPG is selected) */}
       {(selectedFormat === 'png' || selectedFormat === 'jpg') && (

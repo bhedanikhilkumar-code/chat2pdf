@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
 import { toPng } from 'html-to-image';
 import type { Conversation, ExportOptions } from '../parser/types';
-import { buildPaginatedDom, PAGE_STYLES } from '../renderer/pageRenderer';
+import { buildPaginatedDom, getPageDimensions, PAGE_STYLES } from '../renderer/pageRenderer';
 import { downloadBlob } from './downloadHelper';
 
 export async function buildPdfBlob(
@@ -9,11 +9,15 @@ export async function buildPdfBlob(
   options: ExportOptions,
   onProgress?: (current: number, total: number) => void
 ): Promise<Blob> {
+  const orientation = options.pageOrientation || 'portrait';
+  const format = options.pageSize || 'a4';
+  const dims = getPageDimensions(options.pageSize, options.pageOrientation);
+
   if (typeof document === 'undefined') {
     const doc = new jsPDF({
-      orientation: 'portrait',
+      orientation,
       unit: 'mm',
-      format: 'a4',
+      format,
       compress: true,
     });
     doc.text(options.fileName || conversation.title || 'Chat', 15, 15);
@@ -23,7 +27,12 @@ export async function buildPdfBlob(
   const pages = buildPaginatedDom(conversation, options);
 
   if (pages.length === 0) {
-    const doc = new jsPDF();
+    const doc = new jsPDF({
+      orientation,
+      unit: 'mm',
+      format,
+      compress: true,
+    });
     doc.text('No messages to export.', 20, 20);
     return doc.output('blob');
   }
@@ -33,7 +42,7 @@ export async function buildPdfBlob(
   container.style.position = 'fixed';
   container.style.top = '-99999px';
   container.style.left = '-99999px';
-  container.style.width = '794px';
+  container.style.width = `${dims.widthPx}px`;
   container.style.background = '#ffffff';
 
   const styleEl = document.createElement('style');
@@ -48,9 +57,9 @@ export async function buildPdfBlob(
     await new Promise((resolve) => setTimeout(resolve, 200));
 
     const pdf = new jsPDF({
-      orientation: 'portrait',
+      orientation,
       unit: 'mm',
-      format: 'a4',
+      format,
       compress: true,
     });
 
@@ -69,10 +78,10 @@ export async function buildPdfBlob(
       });
 
       if (i > 0) {
-        pdf.addPage('a4', 'portrait');
+        pdf.addPage(format, orientation);
       }
 
-      pdf.addImage(imgDataUrl, 'PNG', 0, 0, 210, 297, undefined, 'FAST');
+      pdf.addImage(imgDataUrl, 'PNG', 0, 0, dims.widthMm, dims.heightMm, undefined, 'FAST');
     }
 
     return pdf.output('blob');

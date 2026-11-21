@@ -6,17 +6,60 @@ import type { Conversation, ExportOptions } from '../parser/types';
 import { filterMessages } from '../parser/filters';
 import { resolveTheme, type ResolvedTheme } from '../theme/resolveTheme';
 
-// Fixed A4 dimensions at 96 DPI CSS pixels
+// Fixed standard dimensions at 96 DPI CSS pixels
 export const A4_WIDTH_PX = 794;
 export const A4_HEIGHT_PX = 1123;
 export const A4_MARGIN_PX = 48; // ~12.7mm margin
 export const USABLE_HEIGHT_PX = A4_HEIGHT_PX - A4_MARGIN_PX * 2 - 36; // leave space for footer
 
-export function buildPageStyles(resolved: ResolvedTheme): string {
+export interface PageDimensions {
+  widthPx: number;
+  heightPx: number;
+  widthMm: number;
+  heightMm: number;
+}
+
+export function getPageDimensions(
+  pageSize: 'a4' | 'letter' = 'a4',
+  orientation: 'portrait' | 'landscape' = 'portrait'
+): PageDimensions {
+  let widthPx = A4_WIDTH_PX;
+  let heightPx = A4_HEIGHT_PX;
+  let widthMm = 210;
+  let heightMm = 297;
+
+  if (pageSize === 'letter') {
+    widthPx = 816;
+    heightPx = 1056;
+    widthMm = 215.9;
+    heightMm = 279.4;
+  }
+
+  if (orientation === 'landscape') {
+    return {
+      widthPx: heightPx,
+      heightPx: widthPx,
+      widthMm: heightMm,
+      heightMm: widthMm,
+    };
+  }
+
+  return {
+    widthPx,
+    heightPx,
+    widthMm,
+    heightMm,
+  };
+}
+
+export function buildPageStyles(
+  resolved: ResolvedTheme,
+  dimensions: PageDimensions = getPageDimensions()
+): string {
   return `
   .chat2pdf-a4-page {
-    width: 794px;
-    height: 1123px;
+    width: ${dimensions.widthPx}px;
+    height: ${dimensions.heightPx}px;
     box-sizing: border-box;
     padding: 48px;
     background: ${resolved.pageBackground};
@@ -227,14 +270,15 @@ export function buildPaginatedDom(
   const messages = filterMessages(conversation.messages, options.filterMode);
   const resolved = resolveTheme(conversation.themeSnapshot, options.pageStyle, conversation.source);
   const watermark = options.watermarkText !== undefined ? options.watermarkText : WATERMARK_TEXT;
-  const dynamicStyles = buildPageStyles(resolved);
+  const dims = getPageDimensions(options.pageSize, options.pageOrientation);
+  const dynamicStyles = buildPageStyles(resolved, dims);
 
   // Hidden offscreen container for measurement
   const measureContainer = document.createElement('div');
   measureContainer.style.position = 'fixed';
   measureContainer.style.top = '-99999px';
   measureContainer.style.left = '-99999px';
-  measureContainer.style.width = `${A4_WIDTH_PX}px`;
+  measureContainer.style.width = `${dims.widthPx}px`;
   measureContainer.style.visibility = 'hidden';
   measureContainer.style.boxSizing = 'border-box';
   measureContainer.style.padding = `${A4_MARGIN_PX}px`;
@@ -308,7 +352,7 @@ export function buildPaginatedDom(
     const msgHeight = msgEl.offsetHeight + 14;
     measureContainer.removeChild(msgEl);
 
-    const availableHeight = USABLE_HEIGHT_PX;
+    const availableHeight = dims.heightPx - A4_MARGIN_PX * 2 - 36;
 
     if (currentHeight + msgHeight <= availableHeight) {
       pages[currentPageIndex].items.push(msgEl);

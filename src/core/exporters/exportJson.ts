@@ -26,7 +26,9 @@ export function buildJsonContent(
     watermark,
   };
 
-  return JSON.stringify(exportData, null, 2);
+  return options.jsonFormat === 'compact'
+    ? JSON.stringify(exportData)
+    : JSON.stringify(exportData, null, 2);
 }
 
 export async function exportJson(

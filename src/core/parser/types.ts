@@ -43,6 +43,12 @@ export type PageStyle = 'match' | 'light' | 'dark';
 
 export type ImageMode = 'long' | 'short' | 'card';
 
+export type PageSize = 'a4' | 'letter';
+
+export type PageOrientation = 'portrait' | 'landscape';
+
+export type JsonFormat = 'pretty' | 'compact';
+
 export type FilterMode = 'all' | 'answers-only' | 'questions-only' | 'summary';
 
 export type PaperType = 'ruled' | 'graph' | 'blank';
@@ -62,6 +68,9 @@ export interface ExportOptions {
   filterMode: FilterMode;
   pageStyle?: PageStyle;
   imageMode?: ImageMode;
+  pageSize?: PageSize;
+  pageOrientation?: PageOrientation;
+  jsonFormat?: JsonFormat;
   handwriting?: HandwritingOptions;
   includeTitle?: boolean;
   fileName?: string;

@@ -239,6 +239,7 @@ export function buildHtmlContent(
     .prose h1, .prose h2, .prose h3 { margin: 1rem 0 0.5rem; font-weight: 700; }
     .prose ul, .prose ol { margin: 0.5rem 0; padding-left: 1.5rem; }
     .prose pre {
+      position: relative;
       background-color: ${resolved.codeBlockBackground};
       border: 1px solid ${resolved.borderColor};
       border-radius: 10px;
@@ -248,6 +249,31 @@ export function buildHtmlContent(
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 13px;
       line-height: 1.45;
+    }
+    .code-copy-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      font-size: 11px;
+      font-weight: 500;
+      line-height: 1;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid ${resolved.borderColor};
+      background: ${resolved.userBubbleBackground};
+      color: ${resolved.textColor};
+      cursor: pointer;
+      opacity: 0.8;
+      transition: all 0.15s ease;
+    }
+    .code-copy-btn:hover {
+      opacity: 1;
+      transform: translateY(-1px);
+    }
+    .code-copy-btn.copied {
+      background: #16a34a;
+      color: #ffffff;
+      border-color: #16a34a;
     }
     .prose code {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -338,6 +364,49 @@ export function buildHtmlContent(
       <span>${escapeHtml(watermark)}</span>
     </div>
   </div>
+
+  <script>
+    (function() {
+      var codeBlocks = document.querySelectorAll('.prose pre');
+      codeBlocks.forEach(function(pre) {
+        var btn = document.createElement('button');
+        btn.className = 'code-copy-btn';
+        btn.textContent = 'Copy';
+        btn.setAttribute('aria-label', 'Copy code to clipboard');
+        btn.addEventListener('click', function() {
+          var code = pre.querySelector('code');
+          var text = code ? code.innerText : pre.innerText;
+          function setCopied() {
+            btn.textContent = 'Copied!';
+            btn.classList.add('copied');
+            setTimeout(function() {
+              btn.textContent = 'Copy';
+              btn.classList.remove('copied');
+            }, 2000);
+          }
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(setCopied).catch(fallback);
+          } else {
+            fallback();
+          }
+          function fallback() {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try {
+              document.execCommand('copy');
+              setCopied();
+            } catch(e) {}
+            document.body.removeChild(ta);
+          }
+        });
+        pre.appendChild(btn);
+      });
+    })();
+  </script>
 </body>
 </html>`;
 
