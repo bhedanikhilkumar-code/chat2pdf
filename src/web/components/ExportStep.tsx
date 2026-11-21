@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type {
   Conversation,
+  CsvDelimiter,
   ExportFormat,
   ExportOptions,
   FilterMode,
@@ -10,6 +11,7 @@ import type {
   PageOrientation,
   PageSize,
   PageStyle,
+  TxtStyle,
 } from '../../core/parser/types';
 import { HandwritingControls } from './HandwritingControls';
 import {
@@ -73,6 +75,9 @@ export const ExportStep: React.FC<ExportStepProps> = ({
   const [pageSize, setPageSize] = useState<PageSize>('a4');
   const [pageOrientation, setPageOrientation] = useState<PageOrientation>('portrait');
   const [jsonFormat, setJsonFormat] = useState<JsonFormat>('pretty');
+  const [includeFrontmatter, setIncludeFrontmatter] = useState<boolean>(false);
+  const [csvDelimiter, setCsvDelimiter] = useState<CsvDelimiter>(',');
+  const [txtStyle, setTxtStyle] = useState<TxtStyle>('detailed');
   const [pageStyle, setPageStyle] = useState<PageStyle>(
     conversation.themeSnapshot ? 'match' : 'light'
   );
@@ -184,6 +189,9 @@ export const ExportStep: React.FC<ExportStepProps> = ({
         pageSize,
         pageOrientation,
         jsonFormat,
+        includeFrontmatter,
+        csvDelimiter,
+        txtStyle,
         fileName: customFileName.trim() || conversation.title || 'chat',
         watermarkText: includeWatermark
           ? customWatermarkText.trim() || undefined
@@ -559,6 +567,116 @@ export const ExportStep: React.FC<ExportStepProps> = ({
               }`}
             >
               Individual cards (.zip)
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Markdown layout selector (Only shown when Markdown is selected) */}
+      {selectedFormat === 'md' && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200/80 dark:border-gray-800">
+          <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
+            Markdown layout:
+          </span>
+          <div className="inline-flex rounded-xl bg-gray-200/70 dark:bg-gray-900/80 p-0.5 text-xs font-medium">
+            <button
+              type="button"
+              onClick={() => setIncludeFrontmatter(false)}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                !includeFrontmatter
+                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-xs font-semibold'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              Standard Header
+            </button>
+            <button
+              type="button"
+              onClick={() => setIncludeFrontmatter(true)}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                includeFrontmatter
+                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-xs font-semibold'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              YAML Frontmatter (Obsidian/Notion)
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* CSV delimiter selector (Only shown when CSV is selected) */}
+      {selectedFormat === 'csv' && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200/80 dark:border-gray-800">
+          <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
+            CSV delimiter:
+          </span>
+          <div className="inline-flex rounded-xl bg-gray-200/70 dark:bg-gray-900/80 p-0.5 text-xs font-medium">
+            <button
+              type="button"
+              onClick={() => setCsvDelimiter(',')}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                csvDelimiter === ','
+                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-xs font-semibold'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              Comma (,)
+            </button>
+            <button
+              type="button"
+              onClick={() => setCsvDelimiter(';')}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                csvDelimiter === ';'
+                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-xs font-semibold'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              Semicolon (;)
+            </button>
+            <button
+              type="button"
+              onClick={() => setCsvDelimiter('\t')}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                csvDelimiter === '\t'
+                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-xs font-semibold'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              Tab (\t / TSV)
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Text layout selector (Only shown when Plain Text is selected) */}
+      {selectedFormat === 'txt' && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200/80 dark:border-gray-800">
+          <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
+            Text layout:
+          </span>
+          <div className="inline-flex rounded-xl bg-gray-200/70 dark:bg-gray-900/80 p-0.5 text-xs font-medium">
+            <button
+              type="button"
+              onClick={() => setTxtStyle('detailed')}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                txtStyle === 'detailed'
+                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-xs font-semibold'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              Detailed (with headers)
+            </button>
+            <button
+              type="button"
+              onClick={() => setTxtStyle('simple')}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                txtStyle === 'simple'
+                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-xs font-semibold'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              Clean Script (dialogue)
             </button>
           </div>
         </div>

@@ -44,6 +44,7 @@ export function buildCsvContent(
   return Papa.unparse(rows, {
     columns: ['index', 'role', 'message', 'attachments'],
     header: true,
+    delimiter: options.csvDelimiter || ',',
   });
 }
 
@@ -52,6 +53,8 @@ export async function exportCsv(
   options: ExportOptions
 ): Promise<void> {
   const csv = buildCsvContent(conversation, options);
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-  await downloadBlob(blob, `${options.fileName || conversation.title || 'chat'}.csv`);
+  const ext = options.csvDelimiter === '\t' ? 'tsv' : 'csv';
+  const mimeType = options.csvDelimiter === '\t' ? 'text/tab-separated-values;charset=utf-8' : 'text/csv;charset=utf-8';
+  const blob = new Blob([csv], { type: mimeType });
+  await downloadBlob(blob, `${options.fileName || conversation.title || 'chat'}.${ext}`);
 }

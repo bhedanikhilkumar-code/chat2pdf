@@ -24,18 +24,28 @@ export function buildTxtContent(
   }
 
   const parts: string[] = [];
+  const isSimple = options.txtStyle === 'simple';
 
   if (options.includeTitle !== false && conversation.title) {
-    parts.push(`Title: ${conversation.title}`);
-    parts.push(`Source: ${conversation.source}`);
-    parts.push(`Exported: ${conversation.exportedAt}`);
-    parts.push('='.repeat(60));
-    parts.push('');
+    if (isSimple) {
+      parts.push(conversation.title);
+      parts.push('');
+    } else {
+      parts.push(`Title: ${conversation.title}`);
+      parts.push(`Source: ${conversation.source}`);
+      parts.push(`Exported: ${conversation.exportedAt}`);
+      parts.push('='.repeat(60));
+      parts.push('');
+    }
   }
 
   for (const msg of messages) {
     const label = ROLE_LABELS[msg.role] || msg.role;
-    parts.push(`--- ${label} ---`);
+    if (isSimple) {
+      parts.push(`${label}:`);
+    } else {
+      parts.push(`--- ${label} ---`);
+    }
     parts.push(cleanMathToReadableText(msg.content));
     if (msg.attachments && msg.attachments.length > 0) {
       parts.push(`Attachments: ${msg.attachments.map((a) => a.name + (a.size ? ` (${a.size})` : '')).join(', ')}`);
@@ -44,7 +54,9 @@ export function buildTxtContent(
   }
 
   if (watermark) {
-    parts.push('='.repeat(60));
+    if (!isSimple) {
+      parts.push('='.repeat(60));
+    }
     parts.push(watermark);
     parts.push('');
   }

@@ -3,6 +3,9 @@ import type { Conversation } from '../src/core/parser/types';
 import { buildJsonContent } from '../src/core/exporters/exportJson';
 import { buildHtmlContent } from '../src/core/exporters/exportHtml';
 import { buildPdfBlob } from '../src/core/exporters/exportPdf';
+import { buildMarkdownContent } from '../src/core/exporters/exportMarkdown';
+import { buildCsvContent } from '../src/core/exporters/exportCsv';
+import { buildTxtContent } from '../src/core/exporters/exportTxt';
 import { getPageDimensions } from '../src/core/renderer/pageRenderer';
 
 describe('Export Options Enhancements (PDF setup, JSON layouts, HTML code copy)', () => {
@@ -93,5 +96,72 @@ describe('Export Options Enhancements (PDF setup, JSON layouts, HTML code copy)'
 
     expect(blob).toBeDefined();
     expect(blob.size).toBeGreaterThan(0);
+  });
+
+  it('buildMarkdownContent supports YAML frontmatter for Obsidian and Notion', () => {
+    const withFrontmatter = buildMarkdownContent(sampleChat, {
+      format: 'md',
+      filterMode: 'all',
+      includeFrontmatter: true,
+    });
+
+    expect(withFrontmatter.startsWith('---\n')).toBe(true);
+    expect(withFrontmatter).toContain('title: "Advanced Options Verification Chat"');
+    expect(withFrontmatter).toContain('source: "chatgpt"');
+    expect(withFrontmatter).toContain('message_count: 2');
+    expect(withFrontmatter).toContain('## 👤 User');
+
+    const standardHeader = buildMarkdownContent(sampleChat, {
+      format: 'md',
+      filterMode: 'all',
+      includeFrontmatter: false,
+    });
+
+    expect(standardHeader.startsWith('---\n')).toBe(false);
+    expect(standardHeader).toContain('# Advanced Options Verification Chat');
+  });
+
+  it('buildCsvContent supports customizable delimiters (comma, semicolon, tab/TSV)', () => {
+    const commaCsv = buildCsvContent(sampleChat, {
+      format: 'csv',
+      filterMode: 'all',
+      csvDelimiter: ',',
+    });
+    expect(commaCsv.split('\n')[0].trim()).toBe('index,role,message,attachments');
+
+    const semiCsv = buildCsvContent(sampleChat, {
+      format: 'csv',
+      filterMode: 'all',
+      csvDelimiter: ';',
+    });
+    expect(semiCsv.split('\n')[0].trim()).toBe('index;role;message;attachments');
+
+    const tabCsv = buildCsvContent(sampleChat, {
+      format: 'csv',
+      filterMode: 'all',
+      csvDelimiter: '\t',
+    });
+    expect(tabCsv.split('\n')[0].trim()).toBe('index\trole\tmessage\tattachments');
+  });
+
+  it('buildTxtContent supports detailed headers and clean dialogue script layouts', () => {
+    const detailedTxt = buildTxtContent(sampleChat, {
+      format: 'txt',
+      filterMode: 'all',
+      txtStyle: 'detailed',
+    });
+    expect(detailedTxt).toContain('Title: Advanced Options Verification Chat');
+    expect(detailedTxt).toContain('--- User ---');
+    expect(detailedTxt).toContain('--- Assistant ---');
+
+    const simpleTxt = buildTxtContent(sampleChat, {
+      format: 'txt',
+      filterMode: 'all',
+      txtStyle: 'simple',
+    });
+    expect(simpleTxt).not.toContain('Title: Advanced Options Verification Chat');
+    expect(simpleTxt).not.toContain('--- User ---');
+    expect(simpleTxt).toContain('User:');
+    expect(simpleTxt).toContain('Assistant:');
   });
 });

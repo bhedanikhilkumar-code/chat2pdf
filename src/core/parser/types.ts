@@ -49,6 +49,10 @@ export type PageOrientation = 'portrait' | 'landscape';
 
 export type JsonFormat = 'pretty' | 'compact';
 
+export type CsvDelimiter = ',' | ';' | '\t';
+
+export type TxtStyle = 'detailed' | 'simple';
+
 export type FilterMode = 'all' | 'answers-only' | 'questions-only' | 'summary';
 
 export type PaperType = 'ruled' | 'graph' | 'blank';
@@ -71,6 +75,9 @@ export interface ExportOptions {
   pageSize?: PageSize;
   pageOrientation?: PageOrientation;
   jsonFormat?: JsonFormat;
+  includeFrontmatter?: boolean;
+  csvDelimiter?: CsvDelimiter;
+  txtStyle?: TxtStyle;
   handwriting?: HandwritingOptions;
   includeTitle?: boolean;
   fileName?: string;

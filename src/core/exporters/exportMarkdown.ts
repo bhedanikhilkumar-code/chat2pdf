@@ -24,6 +24,17 @@ export function buildMarkdownContent(
 
   const parts: string[] = [];
 
+  if (options.includeFrontmatter) {
+    const safeTitle = (conversation.title || 'Chat Conversation').replace(/"/g, '\\"');
+    parts.push('---');
+    parts.push(`title: "${safeTitle}"`);
+    parts.push(`source: "${conversation.source || 'ai'}"`);
+    parts.push(`exported_at: "${conversation.exportedAt || new Date().toISOString()}"`);
+    parts.push(`message_count: ${messages.length}`);
+    parts.push('---');
+    parts.push('');
+  }
+
   if (options.includeTitle !== false && conversation.title) {
     parts.push(`# ${conversation.title}`);
     parts.push('');
