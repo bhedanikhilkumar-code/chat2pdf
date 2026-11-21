@@ -7,6 +7,7 @@ import { buildMarkdownContent } from '../src/core/exporters/exportMarkdown';
 import { buildCsvContent } from '../src/core/exporters/exportCsv';
 import { buildTxtContent } from '../src/core/exporters/exportTxt';
 import { getPageDimensions } from '../src/core/renderer/pageRenderer';
+import { computeEstimatedSize } from '../src/web/components/ExportStep';
 
 describe('Export Options Enhancements (PDF setup, JSON layouts, HTML code copy)', () => {
   const sampleChat: Conversation = {
@@ -163,5 +164,28 @@ describe('Export Options Enhancements (PDF setup, JSON layouts, HTML code copy)'
     expect(simpleTxt).not.toContain('--- User ---');
     expect(simpleTxt).toContain('User:');
     expect(simpleTxt).toContain('Assistant:');
+  });
+
+  it('computeEstimatedSize returns realistic KB estimations for formats', () => {
+    const pdfSize = computeEstimatedSize('pdf', sampleChat, 'long');
+    expect(pdfSize).toMatch(/^~\d+\sKB$/);
+
+    const docxSize = computeEstimatedSize('docx', sampleChat, 'long');
+    expect(docxSize).toMatch(/^~\d+\sKB$/);
+
+    const pptxSize = computeEstimatedSize('pptx', sampleChat, 'long');
+    expect(pptxSize).toMatch(/^~\d+\sKB$/);
+
+    const mdSize = computeEstimatedSize('md', sampleChat, 'long');
+    expect(mdSize).toMatch(/^~\d+\sKB$/);
+
+    const jsonSize = computeEstimatedSize('json', sampleChat, 'long');
+    expect(jsonSize).toMatch(/^~\d+\sKB$/);
+
+    const pngSize = computeEstimatedSize('png', sampleChat, 'long');
+    expect(pngSize).toMatch(/^~\d+\sKB$/);
+
+    const pngCardsSize = computeEstimatedSize('png', sampleChat, 'card');
+    expect(pngCardsSize).toMatch(/^~\d+\sKB$/);
   });
 });

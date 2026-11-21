@@ -56,6 +56,70 @@ interface FormatCard {
 
 type FormatCategory = 'all' | 'documents' | 'images' | 'code-data';
 
+export const computeEstimatedSize = (
+  format: ExportFormat,
+  conversation: Conversation,
+  imageMode: ImageMode = 'long'
+): string => {
+  const totalChars = conversation.messages.reduce(
+    (acc, m) => acc + (m.content?.length || 0),
+    0
+  );
+  const turns = conversation.messages.length;
+
+  switch (format) {
+    case 'pdf': {
+      const kb = Math.round(45 + turns * 8 + totalChars / 500);
+      return `~${kb} KB`;
+    }
+    case 'docx': {
+      const kb = Math.round(10 + turns * 0.4 + totalChars / 2500);
+      return `~${kb} KB`;
+    }
+    case 'pptx': {
+      const kb = Math.round(65 + turns * 4 + totalChars / 1200);
+      return `~${kb} KB`;
+    }
+    case 'png': {
+      const kb = imageMode === 'card' ? Math.round(turns * 25) : Math.round(35 + turns * 6);
+      return `~${kb} KB`;
+    }
+    case 'jpg': {
+      const kb = imageMode === 'card' ? Math.round(turns * 12) : Math.round(12 + turns * 2.5);
+      return `~${kb} KB`;
+    }
+    case 'md': {
+      const kb = Math.max(1, Math.round(totalChars / 1024));
+      return `~${kb} KB`;
+    }
+    case 'txt': {
+      const kb = Math.max(1, Math.round(totalChars / 1024));
+      return `~${kb} KB`;
+    }
+    case 'csv': {
+      const kb = Math.max(1, Math.round((totalChars + turns * 40) / 1024));
+      return `~${kb} KB`;
+    }
+    case 'json': {
+      const kb = Math.max(1, Math.round((totalChars + turns * 120) / 1024));
+      return `~${kb} KB`;
+    }
+    case 'html': {
+      const kb = Math.round(8 + totalChars / 800);
+      return `~${kb} KB`;
+    }
+    case 'handwriting': {
+      const kb = Math.round(90 + turns * 20);
+      return `~${kb} KB`;
+    }
+    case 'zip': {
+      return '< 1 MB';
+    }
+    default:
+      return '< 1 MB';
+  }
+};
+
 export const ExportStep: React.FC<ExportStepProps> = ({
   conversation,
   filterMode,
@@ -90,6 +154,35 @@ export const ExportStep: React.FC<ExportStepProps> = ({
   const [copiedError, setCopiedError] = useState(false);
   const [copiedChat, setCopiedChat] = useState(false);
   const [showHandwritingPanel, setShowHandwritingPanel] = useState(false);
+
+  const totalChars = conversation.messages.reduce(
+    (acc, m) => acc + (m.content?.length || 0),
+    0
+  );
+  const totalWords = conversation.messages.reduce(
+    (acc, m) =>
+      acc +
+      (m.content?.trim() ? m.content.trim().split(/\s+/).filter(Boolean).length : 0),
+    0
+  );
+
+  const appendDateStamp = () => {
+    const today = new Date().toISOString().split('T')[0];
+    if (!customFileName.includes(today)) {
+      setCustomFileName((prev) => `${prev.trim()}-${today}`);
+    }
+  };
+
+  const cleanFilenameToKebab = () => {
+    const cleaned = customFileName
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    if (cleaned) {
+      setCustomFileName(cleaned);
+    }
+  };
 
   const formats: FormatCard[] = [
     {
@@ -343,7 +436,7 @@ export const ExportStep: React.FC<ExportStepProps> = ({
         <label htmlFor="custom-filename-input" className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 shrink-0">
           Export file name:
         </label>
-        <div className="flex items-center gap-2 w-full sm:max-w-md">
+        <div className="flex items-center gap-1.5 w-full sm:max-w-lg flex-wrap sm:flex-nowrap">
           <input
             id="custom-filename-input"
             type="text"
@@ -352,16 +445,34 @@ export const ExportStep: React.FC<ExportStepProps> = ({
             placeholder="Enter file name without extension..."
             className="w-full px-3 py-1.5 text-xs sm:text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-xs"
           />
-          {customFileName !== (conversation.title || 'chat') && (
+          <div className="flex items-center gap-1 shrink-0">
             <button
               type="button"
-              onClick={() => setCustomFileName(conversation.title || 'chat')}
-              className="text-xs text-blue-600 dark:text-blue-400 hover:underline shrink-0 px-1.5 py-1 cursor-pointer"
-              title="Reset to original title"
+              onClick={appendDateStamp}
+              className="text-[11px] font-medium text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-300 px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+              title="Append today's date stamp (YYYY-MM-DD)"
             >
-              Reset
+              + Date
             </button>
-          )}
+            <button
+              type="button"
+              onClick={cleanFilenameToKebab}
+              className="text-[11px] font-medium text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-300 px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+              title="Format filename to kebab-case"
+            >
+              Kebab-case
+            </button>
+            {customFileName !== (conversation.title || 'chat') && (
+              <button
+                type="button"
+                onClick={() => setCustomFileName(conversation.title || 'chat')}
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline px-1.5 py-1 cursor-pointer"
+                title="Reset to original title"
+              >
+                Reset
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -705,6 +816,25 @@ export const ExportStep: React.FC<ExportStepProps> = ({
         ))}
       </div>
 
+      {/* Export Summary Bar */}
+      <div className="flex items-center justify-between p-3 rounded-2xl bg-gray-50/90 dark:bg-gray-800/50 border border-gray-200/80 dark:border-gray-800 text-xs text-gray-600 dark:text-gray-400 flex-wrap gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-semibold text-gray-900 dark:text-gray-200">
+            {conversation.messages.length} message turns
+          </span>
+          <span>•</span>
+          <span>{totalWords.toLocaleString()} words</span>
+          <span>•</span>
+          <span>{totalChars.toLocaleString()} characters</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-medium">
+          <span>Active format:</span>
+          <span className="font-semibold px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 uppercase text-[10px]">
+            {selectedFormat} ({computeEstimatedSize(selectedFormat, conversation, imageMode)})
+          </span>
+        </div>
+      </div>
+
       {/* Formats Grid: 2 columns on phone, 4 columns on desktop */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-3.5">
         {filteredFormats.map((f) => {
@@ -740,13 +870,16 @@ export const ExportStep: React.FC<ExportStepProps> = ({
               </div>
 
               <div className="mt-3 pt-2.5 border-t border-gray-100 dark:border-gray-800/80 flex items-center justify-between text-[11px]">
-                <span className="text-gray-400 dark:text-gray-500">
-                  {f.id === 'handwriting' ? 'Configure' : 'Download'}
+                <span className="text-gray-400 dark:text-gray-500 font-mono text-[10px]">
+                  {computeEstimatedSize(f.id, conversation, imageMode)}
                 </span>
                 {isCurrentActive ? (
                   <span className="animate-spin text-blue-600 font-bold">⏳</span>
                 ) : (
-                  <Download className="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-600" />
+                  <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400 group-hover:text-blue-600">
+                    <span>{f.id === 'handwriting' ? 'Configure' : 'Download'}</span>
+                    <Download className="w-3.5 h-3.5 text-gray-400" />
+                  </div>
                 )}
               </div>
             </div>
