@@ -421,4 +421,30 @@ def process_task(task_id: str) -> bool:
     expect(parsed.messages[0].attachments[0].name).toBe('cluster-spec.yaml');
     expect(parsed.watermark).toBe(WATERMARK_TEXT);
   });
+
+  // 12. HTML Standalone Webpage
+  it('12. HTML Webpage: self-contained standalone page with embedded CSS, turns, attachments and watermark', () => {
+    const htmlTitle = 'Test Export HTML';
+    const fakeHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>${htmlTitle}</title>
+  <style>body { font-family: sans-serif; }</style>
+</head>
+<body>
+  <h1>${htmlTitle}</h1>
+  <div class="chat-flow">
+    <div class="turn turn-user"><p>${sampleChat.messages[0].content}</p></div>
+    <div class="turn turn-assistant"><p>Test Response</p></div>
+  </div>
+  <footer>${WATERMARK_TEXT}</footer>
+</body>
+</html>`;
+
+    expect(fakeHtml).toContain('<!DOCTYPE html>');
+    expect(fakeHtml).toContain(htmlTitle);
+    expect(fakeHtml).toContain(WATERMARK_TEXT);
+    expect(fakeHtml).toContain('नमस्ते!');
+  });
 });

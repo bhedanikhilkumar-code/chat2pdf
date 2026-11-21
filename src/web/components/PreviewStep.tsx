@@ -124,23 +124,36 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
       </div>
 
       {/* Search Input Bar */}
-      <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search keywords within conversation messages..."
-          className="w-full pl-10 pr-10 py-2 text-xs sm:text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-xs"
-        />
-        {searchQuery && (
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search keywords within conversation messages..."
+            className="w-full pl-10 pr-10 py-2 text-xs sm:text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-xs"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer p-0.5"
+              title="Clear search"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {excludedIndices.size > 0 && (
           <button
             type="button"
-            onClick={() => setSearchQuery('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer p-0.5"
-            title="Clear search"
+            onClick={() => setExcludedIndices(new Set())}
+            className="text-xs px-3 py-2 rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 hover:bg-red-100/70 font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1.5 justify-center"
+            title="Restore all excluded turns"
           >
-            <X className="w-4 h-4" />
+            <span>Restore all ({excludedIndices.size})</span>
           </button>
         )}
       </div>

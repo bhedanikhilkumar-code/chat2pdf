@@ -53,6 +53,11 @@ async function validateFile(filePath, fmt) {
     if (!parsed.messages || !Array.isArray(parsed.messages)) {
       throw new Error('Invalid JSON: missing messages array');
     }
+  } else if (fmt === 'html') {
+    const str = buf.toString('utf-8');
+    if (!str.includes('<!DOCTYPE html>') || !str.includes('Chat2PDF')) {
+      throw new Error(`File content suspicious for HTML: ${str.slice(0, 100)}`);
+    }
   }
   return buf.length;
 }
@@ -75,6 +80,7 @@ export async function runDownloadTests() {
     'TXT',
     'CSV',
     'JSON',
+    'HTML',
     'Handwriting PDF',
     'Handwriting JPG',
   ];
@@ -128,6 +134,7 @@ export async function runDownloadTests() {
       { name: 'TXT', id: 'txt', ext: '.txt', selector: 'text="Plain Text (.txt)"' },
       { name: 'CSV', id: 'csv', ext: '.csv', selector: 'text="CSV Table (.csv)"' },
       { name: 'JSON', id: 'json', ext: '.json', selector: 'text="JSON Data (.json)"' },
+      { name: 'HTML', id: 'html', ext: '.html', selector: 'text="HTML Webpage (.html)"' },
     ];
 
     for (const fmt of standardFormats) {
@@ -294,6 +301,7 @@ export async function runDownloadTests() {
       { name: 'TXT', id: 'txt', ext: '.txt', selector: 'text="Plain Text (.txt)"' },
       { name: 'CSV', id: 'csv', ext: '.csv', selector: 'text="CSV Table (.csv)"' },
       { name: 'JSON', id: 'json', ext: '.json', selector: 'text="JSON Data (.json)"' },
+      { name: 'HTML', id: 'html', ext: '.html', selector: 'text="HTML Webpage (.html)"' },
     ];
 
     for (const fmt of standardFormats) {

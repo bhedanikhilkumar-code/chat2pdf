@@ -10,6 +10,7 @@ import {
   exportDocx,
   exportHandwriting,
   exportJson,
+  exportHtml,
 } from '@core/index';
 
 export function useExport() {
@@ -66,6 +67,9 @@ export function useExport() {
             break;
           case 'json':
             await exportJson(conversation, options);
+            break;
+          case 'html':
+            await exportHtml(conversation, options);
             break;
           default:
             throw new Error(`Unsupported format: ${options.format}`);

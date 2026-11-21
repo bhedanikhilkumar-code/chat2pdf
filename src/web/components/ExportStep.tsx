@@ -57,6 +57,9 @@ export const ExportStep: React.FC<ExportStepProps> = ({
   const [pageStyle, setPageStyle] = useState<PageStyle>(
     conversation.themeSnapshot ? 'match' : 'light'
   );
+  const [customFileName, setCustomFileName] = useState<string>(
+    conversation.title || 'chat'
+  );
   const [activeExportingId, setActiveExportingId] = useState<string | null>(null);
   const [copiedError, setCopiedError] = useState(false);
   const [showHandwritingPanel, setShowHandwritingPanel] = useState(false);
@@ -119,6 +122,13 @@ export const ExportStep: React.FC<ExportStepProps> = ({
       badge: 'Data',
     },
     {
+      id: 'html',
+      title: 'HTML Webpage (.html)',
+      icon: <FileCode className="w-5 h-5 text-orange-500" />,
+      desc: 'Self-contained offline webpage with themes, code syntax styling & watermarks',
+      badge: 'Offline',
+    },
+    {
       id: 'handwriting',
       title: 'Handwritten Notes',
       icon: <PenTool className="w-5 h-5 text-amber-600" />,
@@ -141,6 +151,7 @@ export const ExportStep: React.FC<ExportStepProps> = ({
         filterMode,
         pageStyle,
         imageMode,
+        fileName: customFileName.trim() || conversation.title || 'chat',
       });
     } finally {
       setActiveExportingId(null);
@@ -155,6 +166,7 @@ export const ExportStep: React.FC<ExportStepProps> = ({
         filterMode,
         pageStyle,
         handwriting: hwOptions,
+        fileName: customFileName.trim() || conversation.title || 'chat',
       });
     } finally {
       setActiveExportingId(null);
@@ -259,6 +271,33 @@ export const ExportStep: React.FC<ExportStepProps> = ({
           </div>
         </div>
       )}
+
+      {/* File name / Title Customization */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200/80 dark:border-gray-800">
+        <label htmlFor="custom-filename-input" className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 shrink-0">
+          Export file name:
+        </label>
+        <div className="flex items-center gap-2 w-full sm:max-w-md">
+          <input
+            id="custom-filename-input"
+            type="text"
+            value={customFileName}
+            onChange={(e) => setCustomFileName(e.target.value)}
+            placeholder="Enter file name without extension..."
+            className="w-full px-3 py-1.5 text-xs sm:text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-xs"
+          />
+          {customFileName !== (conversation.title || 'chat') && (
+            <button
+              type="button"
+              onClick={() => setCustomFileName(conversation.title || 'chat')}
+              className="text-xs text-blue-600 dark:text-blue-400 hover:underline shrink-0 px-1.5 py-1 cursor-pointer"
+              title="Reset to original title"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Page style control: Match chat / Light / Dark */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200/80 dark:border-gray-800">

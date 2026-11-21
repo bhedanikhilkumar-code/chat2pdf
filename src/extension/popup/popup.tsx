@@ -183,7 +183,7 @@ const Popup: React.FC = () => {
     });
   };
 
-  const handleExport = async (forceProceed = false, quickFormat?: 'md') => {
+  const handleExport = async (forceProceed = false, quickFormat?: 'md' | 'json') => {
     setLoading(true);
     setStatus(quickFormat ? 'Quick exporting markdown...' : 'Loading conversation & scrolling older messages...');
     setCompleteness(null);
@@ -278,6 +278,34 @@ const Popup: React.FC = () => {
             document.body.removeChild(a);
             setTimeout(() => URL.revokeObjectURL(url), 1000);
             setStatus(`Downloaded ${safeTitle}.md (${messages.length} messages)`);
+            setLoading(false);
+            return;
+          }
+
+          // If Quick JSON export was requested, download directly without leaving tab
+          if (quickFormat === 'json') {
+            const jsonText = JSON.stringify(
+              {
+                title,
+                source,
+                exportedAt: new Date().toISOString(),
+                messageCount: messages.length,
+                messages,
+              },
+              null,
+              2
+            );
+            const blob = new Blob([jsonText], { type: 'application/json;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const safeTitle = (title || 'chat').replace(/[^a-z0-9_-]/gi, '_').slice(0, 40);
+            a.download = `${safeTitle}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            setStatus(`Downloaded ${safeTitle}.json (${messages.length} messages)`);
             setLoading(false);
             return;
           }
@@ -462,30 +490,53 @@ const Popup: React.FC = () => {
             ) : (
               <ExternalLink style={{ width: '15px', height: '15px' }} />
             )}
-            <span>{loading ? 'Collecting...' : 'Open Studio (10 Formats)'}</span>
+            <span>{loading ? 'Collecting...' : 'Open Studio (All Formats)'}</span>
           </button>
 
           {!loading && isSupported && (
-            <button
-              onClick={() => handleExport(false, 'md')}
-              title="Instantly download chat as a markdown (.md) file"
-              style={{
-                padding: '11px 12px',
-                backgroundColor: '#f1f5f9',
-                color: '#334155',
-                border: '1px solid #cbd5e1',
-                borderRadius: '12px',
-                fontSize: '12px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
-            >
-              <Download style={{ width: '14px', height: '14px', color: '#0284c7' }} />
-              <span>Quick .md</span>
-            </button>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button
+                onClick={() => handleExport(false, 'md')}
+                title="Instantly download chat as a markdown (.md) file"
+                style={{
+                  padding: '11px 10px',
+                  backgroundColor: '#f1f5f9',
+                  color: '#334155',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '12px',
+                  fontSize: '11.5px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <Download style={{ width: '13px', height: '13px', color: '#0284c7' }} />
+                <span>Quick .md</span>
+              </button>
+
+              <button
+                onClick={() => handleExport(false, 'json')}
+                title="Instantly download chat as raw JSON (.json) file"
+                style={{
+                  padding: '11px 10px',
+                  backgroundColor: '#f1f5f9',
+                  color: '#334155',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '12px',
+                  fontSize: '11.5px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <Download style={{ width: '13px', height: '13px', color: '#6366f1' }} />
+                <span>Quick .json</span>
+              </button>
+            </div>
           )}
 
           {loading && (
