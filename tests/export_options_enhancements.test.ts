@@ -189,4 +189,48 @@ describe('Export Options Enhancements (PDF setup, JSON layouts, HTML code copy)'
     const pngCardsSize = computeEstimatedSize('png', sampleChat, 'card');
     expect(pngCardsSize).toMatch(/^~\d+\sKB$/);
   });
+
+  it('correctly includes message timestamps across Markdown, TXT, and HTML exporters when present', () => {
+    const chatWithTimestamps: Conversation = {
+      title: 'Timestamped Discussion',
+      source: 'claude',
+      exportedAt: '2026-11-22T05:00:00.000Z',
+      messages: [
+        {
+          index: 0,
+          role: 'user',
+          content: 'What is WebAssembly?',
+          timestamp: '10:15 AM',
+        },
+        {
+          index: 1,
+          role: 'assistant',
+          content: 'WebAssembly (Wasm) is a binary instruction format.',
+          timestamp: '10:16 AM',
+        },
+      ],
+    };
+
+    const md = buildMarkdownContent(chatWithTimestamps, {
+      format: 'md',
+      filterMode: 'all',
+    });
+    expect(md).toContain('## 👤 User *(10:15 AM)*');
+    expect(md).toContain('## 🤖 Assistant *(10:16 AM)*');
+
+    const txt = buildTxtContent(chatWithTimestamps, {
+      format: 'txt',
+      filterMode: 'all',
+      txtStyle: 'detailed',
+    });
+    expect(txt).toContain('--- User (10:15 AM) ---');
+    expect(txt).toContain('--- Assistant (10:16 AM) ---');
+
+    const html = buildHtmlContent(chatWithTimestamps, {
+      format: 'html',
+      filterMode: 'all',
+    });
+    expect(html).toContain('<div class="user-timestamp">10:15 AM</div>');
+    expect(html).toContain('<span class="assistant-timestamp">10:16 AM</span>');
+  });
 });

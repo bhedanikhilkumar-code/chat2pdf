@@ -110,6 +110,7 @@ export function buildHtmlContent(
           <div class="user-bubble">
             <div class="prose">${contentHtml}</div>
             ${attachmentsHtml}
+            ${m.timestamp ? `<div class="user-timestamp">${escapeHtml(m.timestamp)}</div>` : ''}
           </div>
         </div>`;
     }
@@ -119,6 +120,7 @@ export function buildHtmlContent(
         <div class="assistant-header">
           <div class="avatar">${assistantInitial}</div>
           <span class="assistant-label">${siteName}</span>
+          ${m.timestamp ? `<span class="assistant-timestamp">${escapeHtml(m.timestamp)}</span>` : ''}
         </div>
         <div class="assistant-body">
           <div class="prose">${contentHtml}</div>
@@ -228,6 +230,18 @@ export function buildHtmlContent(
       font-size: 13px;
       font-weight: 600;
       color: ${resolved.textColor};
+    }
+    .assistant-timestamp {
+      font-size: 11px;
+      color: ${resolved.mutedText};
+      font-weight: 400;
+      margin-left: 4px;
+    }
+    .user-timestamp {
+      font-size: 10px;
+      color: ${resolved.mutedText};
+      margin-top: 4px;
+      text-align: right;
     }
     .assistant-body {
       width: 100%;

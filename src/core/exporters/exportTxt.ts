@@ -41,10 +41,11 @@ export function buildTxtContent(
 
   for (const msg of messages) {
     const label = ROLE_LABELS[msg.role] || msg.role;
+    const timeStr = msg.timestamp ? ` (${msg.timestamp})` : '';
     if (isSimple) {
-      parts.push(`${label}:`);
+      parts.push(`${label}${timeStr}:`);
     } else {
-      parts.push(`--- ${label} ---`);
+      parts.push(`--- ${label}${timeStr} ---`);
     }
     parts.push(cleanMathToReadableText(msg.content));
     if (msg.attachments && msg.attachments.length > 0) {

@@ -350,6 +350,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         color: resolved.mutedText,
                       }}
                     >
+                      {m.timestamp && (
+                        <span style={{ fontSize: '10px', color: resolved.mutedText }}>
+                          {m.timestamp} •
+                        </span>
+                      )}
                       <span style={{ fontSize: '10px', color: resolved.mutedText }}>
                         {(m.content || '').trim().split(/\s+/).filter(Boolean).length} words
                       </span>
@@ -553,6 +558,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     >
                       {getSiteDisplayName(resolved.source)}
                     </span>
+                    {m.timestamp && (
+                      <span style={{ fontSize: '10px', color: resolved.mutedText }}>
+                        {m.timestamp} •
+                      </span>
+                    )}
                     <span style={{ fontSize: '10px', color: resolved.mutedText }}>
                       {(m.content || '').trim().split(/\s+/).filter(Boolean).length} words
                     </span>

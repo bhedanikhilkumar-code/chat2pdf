@@ -48,8 +48,9 @@ export function buildMarkdownContent(
     const msg = messages[i];
     const emoji = ROLE_EMOJI[msg.role] || '💬';
     const roleLabel = msg.role.charAt(0).toUpperCase() + msg.role.slice(1);
+    const timeStr = msg.timestamp ? ` *(${msg.timestamp})*` : '';
 
-    parts.push(`## ${emoji} ${roleLabel}`);
+    parts.push(`## ${emoji} ${roleLabel}${timeStr}`);
     parts.push('');
     parts.push(msg.content);
     parts.push('');
