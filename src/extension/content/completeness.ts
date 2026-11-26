@@ -76,33 +76,48 @@ export function computeAverageMessageHeight(
   if (!container) return 120;
 
   let heights: number[] = [];
+  let targetNodes: HTMLElement[] = [];
+
   if (selectors?.messageContainer) {
-    const nodes = safeQuerySelectorAll<HTMLElement>(container, selectors.messageContainer);
-    for (const node of nodes) {
-      const h = node.offsetHeight || node.getBoundingClientRect().height;
-      if (h > 20 && h < 2500) {
-        heights.push(h);
-      }
-    }
+    const rawNodes = safeQuerySelectorAll<HTMLElement>(container, selectors.messageContainer);
+    // Prefer OUTERMOST matched turn rows so slot height & virtualization buffers aren't underestimated by small inner bubbles
+    targetNodes = rawNodes.filter(
+      (n) => !rawNodes.some((other) => other !== n && other.contains(n))
+    );
   }
 
-  if (heights.length === 0) {
-    // Scan candidate child blocks
-    const children = safeQuerySelectorAll<HTMLElement>(
+  if (targetNodes.length === 0) {
+    const rawChildren = safeQuerySelectorAll<HTMLElement>(
       container,
       '[data-message-author-role], [class*="message"], [class*="chat-turn"], article, [role="article"]'
     );
-    for (const c of children) {
-      const h = c.offsetHeight || c.getBoundingClientRect().height;
-      if (h > 20 && h < 2500) {
-        heights.push(h);
+    targetNodes = rawChildren.filter(
+      (n) => !rawChildren.some((other) => other !== n && other.contains(n))
+    );
+  }
+
+  for (const node of targetNodes) {
+    const h = node.offsetHeight || node.getBoundingClientRect().height;
+    if (h > 20 && h < 2500) {
+      let msgUnits = 1;
+      if (selectors?.userMessage && selectors?.assistantMessage) {
+        try {
+          const uMatch = node.matches(selectors.userMessage);
+          const aMatch = node.matches(selectors.assistantMessage);
+          const uSub = node.querySelector(selectors.userMessage);
+          const aSub = node.querySelector(selectors.assistantMessage);
+          if (!uMatch && !aMatch && uSub && aSub && uSub !== aSub) {
+            msgUnits = 2;
+          }
+        } catch (e) {}
       }
+      heights.push(h / msgUnits);
     }
   }
 
   if (heights.length > 0) {
     const avg = heights.reduce((a, b) => a + b, 0) / heights.length;
-    return Math.max(50, Math.min(600, Math.round(avg)));
+    return Math.max(50, Math.min(800, Math.round(avg)));
   }
 
   return 120; // Default plausible fallback height
@@ -115,7 +130,8 @@ export function evaluateCompleteness(
   scrollContainer: HTMLElement | null,
   messages: ExtractedMessage[],
   selectors?: SiteSelectors,
-  rootDoc: Document | HTMLElement = typeof document !== 'undefined' ? document : (null as any)
+  rootDoc: Document | HTMLElement = typeof document !== 'undefined' ? document : (null as any),
+  observedAvgHeight?: number
 ): CompletenessReport {
   const foundCount = messages.length;
 
@@ -138,8 +154,12 @@ export function evaluateCompleteness(
   let expectedCount = foundCount;
 
   if (scrollContainer && scrollContainer.scrollHeight > 0) {
-    const avgHeight = computeAverageMessageHeight(scrollContainer, selectors);
-    const estimatedFromScroll = Math.max(1, Math.round(scrollContainer.scrollHeight / avgHeight));
+    const domAvgHeight = computeAverageMessageHeight(scrollContainer, selectors);
+    const effectiveAvgHeight =
+      observedAvgHeight && observedAvgHeight > 0
+        ? Math.max(domAvgHeight, Math.min(2500, Math.round(observedAvgHeight)))
+        : domAvgHeight;
+    const estimatedFromScroll = Math.max(1, Math.round(scrollContainer.scrollHeight / effectiveAvgHeight));
     expectedCount = Math.max(foundCount, estimatedFromScroll);
   }
 

@@ -235,13 +235,16 @@ function getElementDepth(el: HTMLElement, container: HTMLElement): number {
 /**
  * Extracts messages using purely structural pattern detection (no class names).
  */
-export function extractByStructure(container: HTMLElement | null): StructureFallbackResult {
+export function extractByStructure(
+  container: HTMLElement | null,
+  minCountToBeat = 0
+): StructureFallbackResult {
   if (!container) {
     return { messages: [], guessedRoleCount: 0, used: false, ancestorSelectorPath: 'none' };
   }
 
   const { parent, children } = findRepeatingBlockAncestor(container);
-  if (!parent || children.length === 0) {
+  if (!parent || children.length === 0 || (minCountToBeat > 0 && children.length <= minCountToBeat)) {
     return { messages: [], guessedRoleCount: 0, used: false, ancestorSelectorPath: 'none' };
   }
 

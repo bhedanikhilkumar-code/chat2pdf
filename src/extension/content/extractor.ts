@@ -149,10 +149,13 @@ export function extractAttachments(turnNode: HTMLElement, selectors?: SiteSelect
   return attachments;
 }
 
-// Generate stable hash id for message deduplication
-export function hashMessage(role: string, content: string, index?: number): string {
+// Persistent identity cache for live DOM turn elements across scroll passes
+const domNodeIdCache = new WeakMap<HTMLElement, string>();
+
+// Generate stable hash id for message deduplication (without unstable viewport slice indices)
+export function hashMessage(role: string, content: string, contextHint?: string | number): string {
   const trimmed = content.trim();
-  const sample = `${role}:${index !== undefined ? index : ''}:${trimmed.length}:${trimmed.slice(0, 300)}:${trimmed.slice(-100)}`;
+  const sample = `${role}:${contextHint !== undefined ? contextHint : ''}:${trimmed.length}:${trimmed.slice(0, 300)}:${trimmed.slice(-100)}`;
   let hash = 0;
   for (let i = 0; i < sample.length; i++) {
     hash = (hash << 5) - hash + sample.charCodeAt(i);
@@ -161,16 +164,56 @@ export function hashMessage(role: string, content: string, index?: number): stri
   return `msg_${role}_${Math.abs(hash)}`;
 }
 
+function getStructuralAnchor(turn: HTMLElement): string | undefined {
+  const explicitPos =
+    turn.getAttribute('data-index') ||
+    turn.getAttribute('data-turn-index') ||
+    turn.getAttribute('aria-posinset');
+  if (explicitPos) return `pos:${explicitPos}`;
+  const inlineTop = turn.style?.top;
+  if (inlineTop && inlineTop.endsWith('px')) {
+    return `top:${inlineTop}`;
+  }
+  return undefined;
+}
+
+function getUniqueTurnKey(
+  turn: HTMLElement,
+  testIdCounts: Map<string, number>
+): string | null {
+  const strongKey =
+    turn.getAttribute('data-turn-key') ||
+    turn.getAttribute('data-message-id') ||
+    turn.closest('[data-turn-key]')?.getAttribute('data-turn-key') ||
+    turn.closest('[data-message-id]')?.getAttribute('data-message-id') ||
+    turn.closest('[data-virtualized-turn-content]')?.getAttribute('data-virtualized-turn-content');
+
+  if (strongKey) return strongKey;
+
+  const testId = turn.getAttribute('data-testid');
+  if (testId && (testIdCounts.get(testId) || 0) === 1) {
+    return testId;
+  }
+
+  return null;
+}
+
 export interface ExtractTurnsStats {
   rawNodes: number;
   roleClassified: number;
   cleaned: number;
 }
 
+export interface ExtractVisibleTurnsOptions {
+  knownMessages?: Map<string, ExtractedMessage>;
+  recordHeight?: (height: number) => void;
+}
+
 // Extract turns currently present in DOM
 export function extractVisibleTurns(
   selectors?: SiteSelectors,
-  stats?: ExtractTurnsStats
+  stats?: ExtractTurnsStats,
+  options?: ExtractVisibleTurnsOptions
 ): ExtractedMessage[] {
   const defaultJunk = [
     'button',
@@ -183,6 +226,8 @@ export function extractVisibleTurns(
   ];
   const junk = selectors?.junkSelectors || defaultJunk;
   const extracted: ExtractedMessage[] = [];
+  const knownMessages = options?.knownMessages;
+  const recordHeight = options?.recordHeight;
 
   if (selectors) {
     const rawTurns = safeQuerySelectorAll<HTMLElement>(document, selectors.messageContainer);
@@ -194,58 +239,111 @@ export function extractVisibleTurns(
     });
 
     if (turns.length > 0) {
+      // Count data-testid frequency so shared static testids (e.g. "assistant-message") aren't treated as unique keys
+      const testIdCounts = new Map<string, number>();
+      turns.forEach((t) => {
+        const tid = t.getAttribute('data-testid');
+        if (tid) testIdCounts.set(tid, (testIdCounts.get(tid) || 0) + 1);
+      });
+
+      let prevTurnSignature = 'start';
+
       turns.forEach((turn, idx) => {
         const matchesUser = safeMatches(turn, selectors.userMessage);
         const matchesAssistant = safeMatches(turn, selectors.assistantMessage);
         const userSubEl = safeQuerySelector<HTMLElement>(turn, selectors.userMessage);
         const assistantSubEl = safeQuerySelector<HTMLElement>(turn, selectors.assistantMessage);
-
-        // Check if turn is a compound wrapper containing both distinct user and assistant nodes
-        if (
+        const isCompound =
           !matchesUser &&
           !matchesAssistant &&
-          userSubEl &&
-          assistantSubEl &&
-          userSubEl !== assistantSubEl
-        ) {
-          // Process user part
-          if (stats) stats.roleClassified++;
-          const userContentEl = safeQuerySelector<HTMLElement>(userSubEl, selectors.messageContent) || userSubEl;
-          const userText = cleanNodeToMarkdownAndHtml(userContentEl, junk);
-          if (userText.markdown || userText.html) {
-            if (stats) stats.cleaned++;
-            const turnKey =
-              turn.getAttribute('data-turn-key') ||
-              turn.getAttribute('data-message-id') ||
-              turn.getAttribute('data-testid');
-            const id = turnKey ? `${turnKey}_user` : hashMessage('user', userText.markdown || userText.html, idx * 2);
-            const attachments = extractAttachments(userSubEl, selectors);
-            extracted.push({
-              id,
-              role: 'user',
-              content: userText.markdown,
-              htmlContent: userText.html,
-              attachments: attachments && attachments.length > 0 ? attachments : undefined,
-            });
+          userSubEl !== null &&
+          assistantSubEl !== null &&
+          userSubEl !== assistantSubEl;
+
+        if (recordHeight) {
+          const outerEl =
+            (!isCompound
+              ? (turn.closest('[data-turn-key], [data-message-id]') as HTMLElement | null)
+              : null) || turn;
+          const h = Math.max(turn.offsetHeight || 0, outerEl.offsetHeight || 0);
+          if (h > 20 && h < 4000) recordHeight(isCompound ? h / 2 : h);
+        }
+
+        const turnKey = getUniqueTurnKey(turn, testIdCounts);
+        const isLastMountedTurn = idx === turns.length - 1;
+
+        // Check if turn is a compound wrapper containing both distinct user and assistant nodes
+        if (isCompound && userSubEl && assistantSubEl) {
+          const compoundUserId = turnKey ? `${turnKey}_user` : undefined;
+          const cachedUser =
+            compoundUserId && !isLastMountedTurn && knownMessages?.get(compoundUserId);
+
+          if (cachedUser && cachedUser.content && cachedUser.htmlContent) {
+            if (stats) {
+              stats.roleClassified++;
+              stats.cleaned++;
+            }
+            extracted.push(cachedUser);
+            prevTurnSignature = `u:${cachedUser.content.slice(0, 60)}:${cachedUser.content.length}`;
+          } else {
+            // Process user part
+            if (stats) stats.roleClassified++;
+            const userContentEl = safeQuerySelector<HTMLElement>(userSubEl, selectors.messageContent) || userSubEl;
+            const userText = cleanNodeToMarkdownAndHtml(userContentEl, junk);
+            if (userText.markdown || userText.html) {
+              if (stats) stats.cleaned++;
+              const bodySig = userText.markdown || userText.html;
+              let id = compoundUserId || domNodeIdCache.get(userSubEl);
+              if (!id) {
+                const anchor = getStructuralAnchor(turn) || prevTurnSignature;
+                id = hashMessage('user', bodySig, `${anchor}_u`);
+                domNodeIdCache.set(userSubEl, id);
+              }
+              const attachments = extractAttachments(userSubEl, selectors);
+              extracted.push({
+                id,
+                role: 'user',
+                content: userText.markdown,
+                htmlContent: userText.html,
+                attachments: attachments && attachments.length > 0 ? attachments : undefined,
+              });
+              prevTurnSignature = `u:${bodySig.slice(0, 60)}:${bodySig.length}`;
+            }
           }
 
-          // Process assistant part
-          if (stats) stats.roleClassified++;
-          const assistantContentEl = safeQuerySelector<HTMLElement>(assistantSubEl, selectors.messageContent) || assistantSubEl;
-          const assistantText = cleanNodeToMarkdownAndHtml(assistantContentEl, junk);
-          if (assistantText.markdown || assistantText.html) {
-            if (stats) stats.cleaned++;
-            const turnKey =
-              turn.getAttribute('data-turn-key') ||
-              turn.getAttribute('data-message-id') ||
-              turn.getAttribute('data-testid');
-            const id = turnKey ? `${turnKey}_assistant` : hashMessage('assistant', assistantText.markdown || assistantText.html, idx * 2 + 1);
-            extracted.push({
-              id,
-              role: 'assistant',
-              content: assistantText.markdown,
-              htmlContent: assistantText.html,
-            });
+          const compoundAssistantId = turnKey ? `${turnKey}_assistant` : undefined;
+          const cachedAssistant =
+            compoundAssistantId && !isLastMountedTurn && knownMessages?.get(compoundAssistantId);
+
+          if (cachedAssistant && cachedAssistant.content && cachedAssistant.htmlContent) {
+            if (stats) {
+              stats.roleClassified++;
+              stats.cleaned++;
+            }
+            extracted.push(cachedAssistant);
+            prevTurnSignature = `a:${cachedAssistant.content.slice(0, 60)}:${cachedAssistant.content.length}`;
+          } else {
+            // Process assistant part
+            if (stats) stats.roleClassified++;
+            const assistantContentEl = safeQuerySelector<HTMLElement>(assistantSubEl, selectors.messageContent) || assistantSubEl;
+            const assistantText = cleanNodeToMarkdownAndHtml(assistantContentEl, junk);
+            if (assistantText.markdown || assistantText.html) {
+              if (stats) stats.cleaned++;
+              const bodySig = assistantText.markdown || assistantText.html;
+              let id = compoundAssistantId || domNodeIdCache.get(assistantSubEl);
+              if (!id) {
+                const anchor = getStructuralAnchor(turn) || prevTurnSignature;
+                id = hashMessage('assistant', bodySig, `${anchor}_a`);
+                domNodeIdCache.set(assistantSubEl, id);
+              }
+              extracted.push({
+                id,
+                role: 'assistant',
+                content: assistantText.markdown,
+                htmlContent: assistantText.html,
+              });
+              prevTurnSignature = `a:${bodySig.slice(0, 60)}:${bodySig.length}`;
+            }
           }
           return;
         }
@@ -256,21 +354,30 @@ export function extractVisibleTurns(
         if (stats && (isUser || isAssistant)) stats.roleClassified++;
         const role: 'user' | 'assistant' = isUser ? 'user' : 'assistant';
 
+        const deterministicId = turnKey ? `${turnKey}_${role}` : undefined;
+        const cachedId = deterministicId || domNodeIdCache.get(turn);
+        const cachedMsg =
+          cachedId && !isLastMountedTurn && knownMessages?.get(cachedId);
+
+        if (cachedMsg && cachedMsg.content && cachedMsg.htmlContent) {
+          if (stats) stats.cleaned++;
+          extracted.push(cachedMsg);
+          prevTurnSignature = `${role[0]}:${cachedMsg.content.slice(0, 60)}:${cachedMsg.content.length}`;
+          return;
+        }
+
         const contentEl = safeQuerySelector<HTMLElement>(turn, selectors.messageContent) || turn;
         const { html, markdown } = cleanNodeToMarkdownAndHtml(contentEl, junk);
 
         if (markdown || html) {
           if (stats) stats.cleaned++;
-          const turnKey =
-            turn.getAttribute('data-turn-key') ||
-            turn.getAttribute('data-message-id') ||
-            turn.closest('[data-turn-key]')?.getAttribute('data-turn-key') ||
-            turn.closest('[data-virtualized-turn-content]')?.getAttribute('data-virtualized-turn-content') ||
-            turn.getAttribute('data-testid');
-
-          const id = turnKey
-            ? `${turnKey}_${role}`
-            : hashMessage(role, markdown || html, idx);
+          const bodySig = markdown || html;
+          let id = cachedId;
+          if (!id) {
+            const anchor = getStructuralAnchor(turn) || prevTurnSignature;
+            id = hashMessage(role, bodySig, anchor);
+            domNodeIdCache.set(turn, id);
+          }
 
           const attachments = isUser ? extractAttachments(turn, selectors) : undefined;
 
@@ -281,6 +388,7 @@ export function extractVisibleTurns(
             htmlContent: html,
             attachments: attachments && attachments.length > 0 ? attachments : undefined,
           });
+          prevTurnSignature = `${role[0]}:${bodySig.slice(0, 60)}:${bodySig.length}`;
         }
       });
       return extracted;
@@ -298,7 +406,12 @@ export function extractVisibleTurns(
     return !rawCandidateTurns.some((other) => other !== turn && turn.contains(other));
   });
 
+  let prevFallbackSig = 'start';
   candidateTurns.forEach((turn) => {
+    if (recordHeight) {
+      const h = turn.offsetHeight;
+      if (h > 20 && h < 4000) recordHeight(h);
+    }
     const roleAttr = (turn.getAttribute('data-message-author-role') || turn.className || '').toLowerCase();
     const isUser = roleAttr.includes('user') || roleAttr.includes('human');
     if (stats) stats.roleClassified++;
@@ -310,8 +423,18 @@ export function extractVisibleTurns(
 
     if ((markdown && markdown.length > 3) || (html && html.length > 5)) {
       if (stats) stats.cleaned++;
-      const id = turn.getAttribute('data-message-id') || hashMessage(role, markdown || html);
+      const bodySig = markdown || html;
+      let id =
+        turn.getAttribute('data-turn-key') ||
+        turn.getAttribute('data-message-id') ||
+        domNodeIdCache.get(turn);
+      if (!id) {
+        const anchor = getStructuralAnchor(turn) || prevFallbackSig;
+        id = hashMessage(role, bodySig, anchor);
+        domNodeIdCache.set(turn, id);
+      }
       extracted.push({ id, role, content: markdown, htmlContent: html });
+      prevFallbackSig = `${role[0]}:${bodySig.slice(0, 60)}:${bodySig.length}`;
     }
   });
 

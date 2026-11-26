@@ -24,6 +24,11 @@ export default function App() {
       if (isFromExt) {
         if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
           chrome.storage.local.get(['chat2pdf_extracted_data'], (result: Record<string, any>) => {
+            if (chrome.runtime?.lastError) {
+              console.warn('chrome.storage.local.get error:', chrome.runtime.lastError.message);
+              setLoadError(chrome.runtime.lastError.message || 'Error reading extension storage');
+              return;
+            }
             const data = result?.chat2pdf_extracted_data;
             if (data && Array.isArray(data.messages) && data.messages.length > 0) {
               const conv = parseExtracted(

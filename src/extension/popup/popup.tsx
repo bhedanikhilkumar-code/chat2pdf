@@ -385,22 +385,61 @@ const Popup: React.FC = () => {
           // Complete or user forced proceed - Open Studio
           setStatus(`Complete: ${messages.length} messages`);
 
-          chrome.storage.local.set(
-            {
-              chat2pdf_extracted_data: {
-                messages,
+          const fullPayload = {
+            messages,
+            title,
+            source,
+            themeSnapshot: response.data.themeSnapshot,
+            diagnosticsReport: diagObj,
+          };
+
+          const openStudioTab = () => {
+            const webAppUrl = chrome.runtime.getURL('web/index.html?source=extension');
+            chrome.tabs.create({ url: webAppUrl });
+            setLoading(false);
+          };
+
+          chrome.storage.local.set({ chat2pdf_extracted_data: fullPayload }, () => {
+            if (chrome.runtime.lastError) {
+              const firstErr = chrome.runtime.lastError.message || 'Storage write failed';
+              console.warn('[Chat2PDF] Full payload storage failed, retrying compact payload:', firstErr);
+
+              // Retry with lightweight Markdown-first payload (drops heavy HTML/thumbnails)
+              const compactPayload = {
+                messages: messages.map((m: any) => ({
+                  id: m.id,
+                  role: m.role,
+                  content: m.content,
+                  attachments: m.attachments?.map((a: any) => ({
+                    name: a.name,
+                    kind: a.kind,
+                    size: a.size,
+                  })),
+                })),
                 title,
                 source,
                 themeSnapshot: response.data.themeSnapshot,
-                diagnosticsReport: diagObj,
-              },
-            },
-            () => {
-              const webAppUrl = chrome.runtime.getURL('web/index.html?source=extension');
-              chrome.tabs.create({ url: webAppUrl });
-              setLoading(false);
+              };
+
+              chrome.storage.local.set({ chat2pdf_extracted_data: compactPayload }, () => {
+                if (chrome.runtime.lastError) {
+                  const compactErr = chrome.runtime.lastError.message || 'Storage quota exceeded';
+                  console.error('[Chat2PDF] Compact payload storage failed:', compactErr);
+                  setFriendlyError(
+                    'This chat is too large for browser extension transfer storage. Please use Quick Export (.md / .json / .html) or paste into the web app.'
+                  );
+                  setRawErrorDetails(
+                    `[Chat2PDF Error Details]\nType: Storage Quota Exceeded\nMessages: ${messages.length}\nMessage: ${compactErr}\nTime: ${new Date().toISOString()}`
+                  );
+                  setLoading(false);
+                  return;
+                }
+                openStudioTab();
+              });
+              return;
             }
-          );
+            openStudioTab();
+          });
         } else {
           const raw = response?.error || 'Extraction returned falsy success response';
           console.error('[Chat2PDF] Extraction error response:', raw);

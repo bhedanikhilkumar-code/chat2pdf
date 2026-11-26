@@ -13,7 +13,8 @@ export function processRichMessage(
   try {
     const liveSpans = safeQuerySelectorAll<HTMLElement>(liveNode, 'pre code span, pre span');
     const cloneSpans = safeQuerySelectorAll<HTMLElement>(clone, 'pre code span, pre span');
-    const count = Math.min(liveSpans.length, cloneSpans.length);
+    // Cap per-message span hydration to keep 100+ message chats fast and storage-friendly
+    const count = Math.min(liveSpans.length, cloneSpans.length, 400);
     for (let i = 0; i < count; i++) {
       try {
         const cs = window.getComputedStyle(liveSpans[i]);

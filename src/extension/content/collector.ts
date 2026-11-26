@@ -131,6 +131,18 @@ export function findScrollContainer(selectors?: SiteSelectors): HTMLElement | nu
 
   if (selectors?.scrollContainer) {
     const elements = safeQuerySelectorAll<HTMLElement>(document, selectors.scrollContainer);
+    // Prefer containers that actually have overflow-y auto/scroll AND scrollable height
+    for (const el of elements) {
+      try {
+        const style = window.getComputedStyle(el);
+        if (
+          (style.overflowY === 'auto' || style.overflowY === 'scroll') &&
+          el.scrollHeight > el.clientHeight + 20
+        ) {
+          return el;
+        }
+      } catch (e) {}
+    }
     for (const el of elements) {
       if (el.scrollHeight > el.clientHeight + 20) {
         return el;
@@ -254,16 +266,24 @@ export async function collectFullConversation(
   const accumulatedIds = new Set<string>();
   const orderedIds: string[] = [];
   const downwardOrderedIds: string[] = [];
+  const downwardIdSet = new Set<string>();
+
+  let heightSum = 0;
+  let heightCount = 0;
+  const recordHeight = (h: number) => {
+    heightSum += h;
+    heightCount++;
+  };
 
   function recordMessages(messages: ExtractedMessage[], prepend = false) {
-    const newMessages: ExtractedMessage[] = [];
+    const newIds: string[] = [];
 
     messages.forEach((msg) => {
       const id = msg.id || hashMessage(msg.role, msg.content);
       if (!accumulatedIds.has(id)) {
         accumulatedIds.add(id);
         messageMap.set(id, msg);
-        newMessages.push(msg);
+        newIds.push(id);
       } else {
         const existing = messageMap.get(id);
         if (existing) {
@@ -275,8 +295,7 @@ export async function collectFullConversation(
       }
     });
 
-    if (newMessages.length > 0) {
-      const newIds = newMessages.map((m) => m.id || hashMessage(m.role, m.content));
+    if (newIds.length > 0) {
       if (prepend) {
         orderedIds.unshift(...newIds);
       } else {
@@ -300,13 +319,32 @@ export async function collectFullConversation(
           }
         }
       }
-      if (!downwardOrderedIds.includes(id)) {
+      if (!downwardIdSet.has(id)) {
+        downwardIdSet.add(id);
         downwardOrderedIds.push(id);
       }
     });
   }
 
   const turnStats: ExtractTurnsStats = { rawNodes: 0, roleClassified: 0, cleaned: 0 };
+
+  function setScrollPosition(container: HTMLElement, targetTop: number): void {
+    const prevTop = container.scrollTop;
+    container.scrollTop = targetTop;
+    if (container.scrollTop !== prevTop) {
+      try {
+        container.dispatchEvent(new Event('scroll', { bubbles: false }));
+        if (
+          typeof window !== 'undefined' &&
+          (container === document.scrollingElement ||
+            container === document.documentElement ||
+            container === document.body)
+        ) {
+          window.dispatchEvent(new Event('scroll', { bubbles: false }));
+        }
+      } catch (e) {}
+    }
+  }
 
   function notifyProgress(phase: 'up' | 'down' | 'complete', estimatedTotal?: number) {
     const loaded = messageMap.size;
@@ -338,7 +376,10 @@ export async function collectFullConversation(
 
   // Initial visible scan
   expandCollapsedContent(selectors);
-  const initialBatch = extractVisibleTurns(selectors, turnStats);
+  const initialBatch = extractVisibleTurns(selectors, turnStats, {
+    knownMessages: messageMap,
+    recordHeight,
+  });
   recordMessages(initialBatch);
   notifyProgress('up', initialBatch.length);
 
@@ -380,16 +421,19 @@ export async function collectFullConversation(
 
       // Step up by ~80% of clientHeight
       const step = Math.max(250, Math.floor((scrollContainer.clientHeight || 600) * 0.8));
-      scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop - step);
+      setScrollPosition(scrollContainer, Math.max(0, scrollContainer.scrollTop - step));
 
-      // Settle wait with DOM mutation watcher (150ms - 700ms)
-      await waitForSettle(scrollContainer, 150, 700);
+      // Settle wait with DOM mutation watcher (120ms - 650ms)
+      await waitForSettle(scrollContainer, 120, 650);
       expandCollapsedContent(selectors);
 
-      const batch = extractVisibleTurns(selectors, turnStats);
+      const batch = extractVisibleTurns(selectors, turnStats, {
+        knownMessages: messageMap,
+        recordHeight,
+      });
       recordMessages(batch, true);
 
-      if (messageMap.size === lastSize && scrollContainer.scrollTop === 0) {
+      if (messageMap.size === lastSize && scrollContainer.scrollTop <= 2) {
         consecutiveTopOrStable++;
         if (consecutiveTopOrStable < 3) {
           // Allow lazy batch network load at top
@@ -407,12 +451,18 @@ export async function collectFullConversation(
     // PASS 2: Step DOWNWARDS to capture strictly canonical top-to-bottom sequence
     // -----------------------------------------------------------------
     console.log('[Chat2PDF] Pass 2 (DOWNWARDS): stepping down through chat list...');
-    scrollContainer.scrollTop = 0;
-    await waitForSettle(scrollContainer, 150, 500);
+    setScrollPosition(scrollContainer, 0);
+    await waitForSettle(scrollContainer, 120, 500);
     expandCollapsedContent(selectors);
-    recordDownwardOrder(extractVisibleTurns(selectors, turnStats));
+    recordDownwardOrder(
+      extractVisibleTurns(selectors, turnStats, {
+        knownMessages: messageMap,
+        recordHeight,
+      })
+    );
 
     let atBottomRounds = 0;
+    let lastDownSize = messageMap.size;
     while (atBottomRounds < 2 && Date.now() - startTime < MAX_TIME_MS) {
       if (token.cancelled) break;
 
@@ -426,34 +476,38 @@ export async function collectFullConversation(
 
       const step = Math.max(250, Math.floor((scrollContainer.clientHeight || 600) * 0.8));
       const prevScroll = scrollContainer.scrollTop;
-      scrollContainer.scrollTop = Math.min(
-        scrollContainer.scrollHeight,
-        scrollContainer.scrollTop + step
+      setScrollPosition(
+        scrollContainer,
+        Math.min(scrollContainer.scrollHeight, scrollContainer.scrollTop + step)
       );
 
-      await waitForSettle(scrollContainer, 150, 500);
+      await waitForSettle(scrollContainer, 120, 500);
       expandCollapsedContent(selectors);
 
-      const batch = extractVisibleTurns(selectors, turnStats);
+      const batch = extractVisibleTurns(selectors, turnStats, {
+        knownMessages: messageMap,
+        recordHeight,
+      });
       recordDownwardOrder(batch);
 
-      if (
+      const nearBottom =
         scrollContainer.scrollTop >=
           scrollContainer.scrollHeight - scrollContainer.clientHeight - 10 ||
-        scrollContainer.scrollTop === prevScroll
-      ) {
+        scrollContainer.scrollTop === prevScroll;
+
+      if (nearBottom && messageMap.size === lastDownSize) {
         atBottomRounds++;
+      } else {
+        atBottomRounds = 0;
+        lastDownSize = messageMap.size;
       }
 
       notifyProgress('down', messageMap.size);
     }
 
-    // Step back to top to verify top state and evaluate completeness
-    scrollContainer.scrollTop = 0;
-    await waitForSettle(scrollContainer, 150, 500);
-
-    // Restore scroll position
-    scrollContainer.scrollTop = originalScrollTop;
+    // Step back to top to verify top state before completeness evaluation
+    setScrollPosition(scrollContainer, 0);
+    await waitForSettle(scrollContainer, 120, 500);
   }
 
   activeCancellationToken = null;
@@ -476,10 +530,12 @@ export async function collectFullConversation(
 
   // Use downward-ordered sequence if pass 2 ran, otherwise fall back to orderedIds
   const canonicalIds = downwardOrderedIds.length > 0 ? downwardOrderedIds : orderedIds;
+  const canonicalSet = downwardOrderedIds.length > 0 ? downwardIdSet : new Set(orderedIds);
   // Ensure any turns in messageMap that weren't captured in canonicalIds are appended
   for (const id of messageMap.keys()) {
-    if (!canonicalIds.includes(id)) {
+    if (!canonicalSet.has(id)) {
       canonicalIds.push(id);
+      canonicalSet.add(id);
     }
   }
 
@@ -492,7 +548,7 @@ export async function collectFullConversation(
   let fallbackAncestorPath = '';
 
   if (scrollContainer) {
-    const structureResult = extractByStructure(scrollContainer);
+    const structureResult = extractByStructure(scrollContainer, finalMessages.length);
     if (structureResult.messages.length > finalMessages.length) {
       console.log(
         `[Chat2PDF] Structure fallback detected ${structureResult.messages.length} messages vs ${finalMessages.length} from primary selectors. Switching to structure fallback.`
@@ -509,8 +565,15 @@ export async function collectFullConversation(
   pipelineStats.guessedRoleCount = guessedRoleCount;
   pipelineStats.buttonsClicked = buttonsClicked;
 
-  // Run completeness check
-  const completeness = evaluateCompleteness(scrollContainer, finalMessages, selectors);
+  // Evaluate completeness WHILE still scrolled at top (scrollTop === 0) before restoring scrollTop
+  const observedAvgHeight = heightCount > 0 ? heightSum / heightCount : undefined;
+  const completeness = evaluateCompleteness(
+    scrollContainer,
+    finalMessages,
+    selectors,
+    typeof document !== 'undefined' ? document : (null as any),
+    observedAvgHeight
+  );
 
   // Sample message elements for redacted skeleton
   let messageEls: HTMLElement[] = [];
@@ -539,6 +602,13 @@ export async function collectFullConversation(
     ancestorPath: fallbackAncestorPath,
     messageElements: messageEls,
   });
+
+  // Restore original scroll position now that top-state completeness and skeleton checks are finished
+  if (scrollContainer) {
+    try {
+      scrollContainer.scrollTop = originalScrollTop;
+    } catch (e) {}
+  }
 
   return {
     title,
