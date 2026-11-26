@@ -10,7 +10,7 @@
     "check:selectors": "node scripts/check-selectors.js",
     "check:csp": "node scripts/check-extension-csp.js",
     "build:web": "vite build",
-    "build:extension": "npm run check:selectors && npm run build:web:ext && vite build --config vite.config.ext.ts && node scripts/finalize-extension.js && npm run check:csp",
+    "build:extension": "npm run check:selectors && npm run build:web:ext && vite build --config vite.config.ext.ts && node scripts/build-ext-scripts.mjs && node scripts/finalize-extension.js && npm run check:csp",
     "build": "npm run check:selectors && npm run build:web && npm run build:extension",
     "build:web:ext": "vite build --mode extension --outDir dist-web-ext"
   },

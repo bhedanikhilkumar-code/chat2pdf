@@ -51,6 +51,24 @@ for (const file of htmlFiles) {
 if (hasErrors) {
   console.error('[CSP Check FAIL] Extension HTML contains inline scripts or handlers violating Content Security Policy!');
   process.exit(1);
-} else {
-  console.log(`[CSP Check PASS] All ${htmlFiles.length} extension HTML files are free of inline scripts and on*= event handlers.`);
 }
+
+// Verify content script and background worker are self-contained without top-level ESM import/export
+const standaloneScripts = [
+  path.join(distDir, 'content', 'extractor.js'),
+  path.join(distDir, 'background', 'service-worker.js'),
+];
+
+for (const scriptPath of standaloneScripts) {
+  if (!fs.existsSync(scriptPath)) {
+    console.error(`[CSP Check FAIL] Missing standalone extension script: ${scriptPath}`);
+    process.exit(1);
+  }
+  const scriptSrc = fs.readFileSync(scriptPath, 'utf8').trimStart();
+  if (/^(import|export)\b/m.test(scriptSrc.slice(0, 300))) {
+    console.error(`[CSP Check FAIL] ${path.relative(process.cwd(), scriptPath)} starts with ES module import/export, which fails in classic MV3 content scripts!`);
+    process.exit(1);
+  }
+}
+
+console.log(`[CSP Check PASS] All ${htmlFiles.length} extension HTML files are free of inline scripts and on*= event handlers, and scripts are self-contained IIFE bundles.`);

@@ -20,19 +20,9 @@ export default defineConfig({
     rollupOptions: {
       input: {
         popup: path.resolve(__dirname, 'src/extension/popup/popup.html'),
-        extractor: path.resolve(__dirname, 'src/extension/content/extractor.ts'),
-        'service-worker': path.resolve(__dirname, 'src/extension/background/service-worker.ts'),
       },
       output: {
-        entryFileNames: (chunkInfo) => {
-          if (chunkInfo.name === 'extractor') {
-            return 'content/extractor.js';
-          }
-          if (chunkInfo.name === 'service-worker') {
-            return 'background/service-worker.js';
-          }
-          return '[name]/[name].js';
-        },
+        entryFileNames: '[name]/[name].js',
         chunkFileNames: 'chunks/[name]-[hash].js',
         assetFileNames: 'assets/[name].[ext]',
       },
