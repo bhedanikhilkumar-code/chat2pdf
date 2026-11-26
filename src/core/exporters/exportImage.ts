@@ -209,9 +209,56 @@ export async function exportImage(
   }
 
   const resolved = resolveTheme(conversation.themeSnapshot, options.pageStyle, conversation.source);
+  const watermark = options.watermarkText !== undefined ? options.watermarkText : WATERMARK_TEXT;
   const ext = format === 'jpg' ? 'jpg' : 'png';
   const exportFn = format === 'jpg' ? toJpeg : toPng;
   const baseName = options.fileName || conversation.title || 'chat';
+
+  // Handle Individual Cards (.zip) mode cleanly for long & short chats
+  if (mode === 'card') {
+    const zip = new JSZip();
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      const cardTree = createContainerWithStyles(resolved);
+      cardTree.container.style.padding = '24px';
+
+      cardTree.column.appendChild(createMessageDom(msg, resolved));
+
+      if (watermark) {
+        const cardFooter = document.createElement('div');
+        cardFooter.style.marginTop = '16px';
+        cardFooter.style.paddingTop = '10px';
+        cardFooter.style.borderTop = `1px solid ${resolved.borderColor}`;
+        cardFooter.style.display = 'flex';
+        cardFooter.style.justifyContent = 'space-between';
+        cardFooter.style.fontSize = '11px';
+        cardFooter.style.color = resolved.mutedText;
+        cardFooter.innerHTML = `<span>Turn ${i + 1} of ${messages.length}</span><span>${watermark}</span>`;
+        cardTree.column.appendChild(cardFooter);
+      }
+
+      document.body.appendChild(cardTree.container);
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 60));
+        const dataUrl = await exportFn(cardTree.container, {
+          quality: 0.95,
+          pixelRatio: 1.5,
+          skipFonts: true,
+          cacheBust: false,
+        });
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        const cardNum = String(i + 1).padStart(3, '0');
+        zip.file(`${baseName}_card_${cardNum}.${ext}`, blob);
+      } finally {
+        document.body.removeChild(cardTree.container);
+      }
+    }
+
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    await downloadBlob(zipBlob, `${baseName}_cards.zip`);
+    return;
+  }
 
   // 1. Build measurement tree
   const { container, column } = createContainerWithStyles(resolved);
@@ -248,22 +295,26 @@ export async function exportImage(
     msgElements.push(el);
   });
 
-  const footer = document.createElement('div');
-  footer.style.marginTop = '40px';
-  footer.style.paddingTop = '16px';
-  footer.style.borderTop = `1px solid ${resolved.borderColor}`;
-  footer.style.display = 'flex';
-  footer.style.justifyContent = 'flex-end';
-  footer.style.fontSize = '11px';
-  footer.style.color = resolved.mutedText;
-  footer.innerHTML = `<span>${WATERMARK_TEXT}</span>`;
-  column.appendChild(footer);
+  if (watermark) {
+    const footer = document.createElement('div');
+    footer.style.marginTop = '40px';
+    footer.style.paddingTop = '16px';
+    footer.style.borderTop = `1px solid ${resolved.borderColor}`;
+    footer.style.display = 'flex';
+    footer.style.justifyContent = 'flex-end';
+    footer.style.fontSize = '11px';
+    footer.style.color = resolved.mutedText;
+    footer.innerHTML = `<span>${watermark}</span>`;
+    column.appendChild(footer);
+  }
 
   document.body.appendChild(container);
 
   try {
     await new Promise((resolve) => setTimeout(resolve, 200));
     const totalHeight = container.offsetHeight;
+    // Measure each message height BEFORE removing container from DOM!
+    const msgHeights = msgElements.map((el) => (el.offsetHeight || 100) + 24);
 
     // Check if total height fits in single canvas or needs splitting
     if (totalHeight <= MAX_CANVAS_HEIGHT) {
@@ -279,19 +330,21 @@ export async function exportImage(
       const filename = `${baseName}_${mode}.${ext}`;
       await downloadBlob(blob, filename);
     } else {
-      // Split at message boundaries and package into ZIP
+      // Safe to detach container now that all heights are measured
       document.body.removeChild(container);
 
+      const SLICE_CHROME_ALLOWANCE = 240; // padding + header/footer allowance
+      const maxSliceBodyHeight = MAX_CANVAS_HEIGHT - SLICE_CHROME_ALLOWANCE;
       const slices: ChatMessage[][] = [];
       let currentSlice: ChatMessage[] = [];
       let currentSliceHeight = 0;
 
-      // Group messages by height limit
+      // Group messages by height limit using already-measured DOM heights
       for (let i = 0; i < messages.length; i++) {
         const msg = messages[i];
-        const approxHeight = msgElements[i].offsetHeight + 24;
+        const approxHeight = msgHeights[i];
 
-        if (currentSliceHeight + approxHeight > MAX_CANVAS_HEIGHT && currentSlice.length > 0) {
+        if (currentSliceHeight + approxHeight > maxSliceBodyHeight && currentSlice.length > 0) {
           slices.push(currentSlice);
           currentSlice = [msg];
           currentSliceHeight = approxHeight;
@@ -337,7 +390,7 @@ export async function exportImage(
         sliceFooter.style.color = resolved.mutedText;
         sliceFooter.innerHTML = `
           <span>Part ${sIdx + 1} of ${slices.length}</span>
-          <span>${WATERMARK_TEXT}</span>
+          ${watermark ? `<span>${watermark}</span>` : ''}
         `;
         sliceTree.column.appendChild(sliceFooter);
 

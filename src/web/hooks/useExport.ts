@@ -61,7 +61,7 @@ export function useExport() {
             break;
           case 'png':
           case 'jpg':
-            await exportImage(conversation, options, options.format);
+            await exportImage(conversation, options, options.format, options.imageMode || 'long');
             break;
           case 'docx':
             await exportDocx(conversation, options);
